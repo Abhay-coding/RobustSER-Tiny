@@ -1,9 +1,78 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python package
+*.egg-info/
+dist/
+build/
+*.egg
+
+# PyTorch checkpoints
+*.pt
+*.pth
+*.ckpt
+
+# ONNX exports
+*.onnx
+
+# MLflow
+mlruns/
+
+# DVC
+.dvc/
+data/raw/
+*.dvc
+
+# Logs
+*.log
+logs/
+wandb/
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Demo
+demo/__pycache__/
+.streamlit/
+
+# Local config
+.env
+.local.env
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+
 # Raw, immutable source data is intentionally not stored in Git.
 dataset/AudioWAV/
 dataset/MUSAN/
 dataset/RAVDESS/
+dataset/TESS/
 
-# Local environments and generated runtime files.
+# Local environments and generated runtime files (additional)
 .venv/
 __pycache__/
 *.egg-info/
@@ -27,3 +96,5 @@ mlruns/
 .DS_Store
 Thumbs.db
 0.65
+/2
+/35%

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from scipy import signal
 from torch.utils.data import Dataset
 
 from robustser.augmentation.noise import mix_at_snr, noise_rows_from_manifest
@@ -32,6 +33,30 @@ def extract_features(audio: np.ndarray, feature_type: str) -> np.ndarray:
         raise ValueError(f"Unsupported feature type: {feature_type}") from error
 
 
+def apply_spec_augment(
+    features: np.ndarray,
+    *,
+    rng: np.random.Generator,
+    frequency_masks: int,
+    frequency_mask_width: int,
+    time_masks: int,
+    time_mask_width: int,
+) -> np.ndarray:
+    """Apply deterministic zero masks to a training feature matrix only."""
+    augmented = np.array(features, copy=True)
+    for count, width, axis in ((frequency_masks, frequency_mask_width, 0), (time_masks, time_mask_width, 1)):
+        for _ in range(count):
+            actual_width = int(rng.integers(0, min(width, augmented.shape[axis]) + 1))
+            if not actual_width:
+                continue
+            start = int(rng.integers(0, augmented.shape[axis] - actual_width + 1))
+            if axis == 0:
+                augmented[start : start + actual_width, :] = 0.0
+            else:
+                augmented[:, start : start + actual_width] = 0.0
+    return augmented
+
+
 def load_split_rows(manifest_path: str | Path, *, split: str, task: str) -> list[dict[str, str]]:
     """Read only one frozen split and filter it to the requested label task."""
     if split not in VALID_SPLITS:
@@ -54,14 +79,17 @@ def load_split_rows(manifest_path: str | Path, *, split: str, task: str) -> list
 
 
 def read_pcm16_mono(path: str | Path) -> np.ndarray:
-    """Read a CREMA-D PCM16 mono WAV into normalized float samples."""
+    """Read a PCM16 mono WAV and resample it to the model's 16 kHz rate."""
     with wave.open(str(path), "rb") as source:
-        if source.getframerate() != SAMPLE_RATE:
-            raise ValueError(f"Expected {SAMPLE_RATE} Hz WAV: {path}")
         if source.getnchannels() != 1 or source.getsampwidth() != 2:
             raise ValueError(f"Expected 16-bit mono PCM WAV: {path}")
+        source_rate = source.getframerate()
         raw = source.readframes(source.getnframes())
-    return np.frombuffer(raw, dtype="<i2").astype(np.float32) / 32768.0
+    audio = np.frombuffer(raw, dtype="<i2").astype(np.float32) / 32768.0
+    if source_rate == SAMPLE_RATE:
+        return audio
+    divisor = int(np.gcd(source_rate, SAMPLE_RATE))
+    return signal.resample_poly(audio, SAMPLE_RATE // divisor, source_rate // divisor).astype(np.float32)
 
 
 def read_pcm16_mono_segment(path: str | Path, *, length: int, rng: np.random.Generator) -> np.ndarray:
@@ -101,6 +129,7 @@ class CREMADSERDataset(Dataset[tuple[torch.Tensor, int]]):
         snr_db_range: tuple[float, float] = (5.0, 20.0),
         feature_type: str = "log_mel_filterbank_energy",
         window_seconds: float = 1.0,
+        spec_augmentation: dict[str, int] | None = None,
     ) -> None:
         if not 0.0 <= noise_probability <= 1.0:
             raise ValueError("noise_probability must be between zero and one")
@@ -125,6 +154,9 @@ class CREMADSERDataset(Dataset[tuple[torch.Tensor, int]]):
         self.noise_rows = noise_rows_from_manifest(noise_manifest_path, split="augmentation_train") if noise_probability else []
         self.feature_type = feature_type
         self.window_samples = round(window_seconds * SAMPLE_RATE)
+        self.spec_augmentation = spec_augmentation or {}
+        if self.spec_augmentation and split != "train":
+            raise ValueError("SpecAugment is allowed only for the training split")
 
     def set_epoch(self, epoch: int) -> None:
         if epoch < 0:
@@ -153,6 +185,15 @@ class CREMADSERDataset(Dataset[tuple[torch.Tensor, int]]):
             snr_db = float(rng.uniform(*self.snr_db_range))
             window = mix_at_snr(window, noise, snr_db=snr_db, rng=rng)
         features = extract_features(window, self.feature_type)
+        if self.spec_augmentation and rng is not None:
+            features = apply_spec_augment(
+                features,
+                rng=rng,
+                frequency_masks=int(self.spec_augmentation.get("frequency_masks", 0)),
+                frequency_mask_width=int(self.spec_augmentation.get("frequency_mask_width", 0)),
+                time_masks=int(self.spec_augmentation.get("time_masks", 0)),
+                time_mask_width=int(self.spec_augmentation.get("time_mask_width", 0)),
+            )
         # Conv2d expects [channels, mel_bins, frames] for a single example.
         tensor = torch.from_numpy(features).unsqueeze(0)
         return tensor, self.label_to_index[row["emotion"]]

@@ -255,3 +255,12 @@ E5 therefore improves clean performance and shows a supported gain under
 moderate (20 dB) noise, but it has **not** established stronger robustness at
 10 dB or below. The next improvement must target severe-noise robustness or
 cross-corpus transfer without selecting on the frozen clean test set.
+
+## E5 validation-only calibration audit
+
+Temperature scaling was fit independently on each E5 checkpoint's validation
+logits. Mean validation ECE increased from **0.0458** before scaling to
+**0.0577** after scaling. Since this worsened the measured calibration metric,
+temperature scaling is not used by the demo. The demo instead exposes raw
+probabilities, the top-two margin, and warnings for low confidence or
+ambiguous predictions.

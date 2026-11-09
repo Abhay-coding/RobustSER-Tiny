@@ -1,4 +1,5 @@
 protocol_name: crema_d_speaker_independent_v1
+protocol_version: "1.0.0"
 source_manifest: data/manifests/crema_d_speaker_splits.csv
 quality_report: data/manifests/crema_d_audio_quality.csv
 duplicate_conflict_report: data/manifests/crema_d_duplicate_conflicts.csv

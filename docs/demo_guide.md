@@ -5,8 +5,10 @@
 The demo runs the validation-selected E5 checkpoint locally on a WAV upload or
 browser microphone recording. It converts the audio to mono 16 kHz, applies
 the fixed two-second centre-crop/zero-pad policy, extracts MFCC features, and
-shows all six class probabilities. It is a demonstration of a research model,
-not a system for determining a person's actual emotion or mental-health state.
+shows all six class probabilities. CREMA-D training clips average 2.55 seconds,
+so use one clearly acted sentence of about 2.5 seconds; the demo accepts up to
+five minutes, although it classifies the centre two-second window. It is a demonstration of a research model, not a system
+for determining a person's actual emotion or mental-health state.
 
 ## Start it
 
@@ -25,6 +27,8 @@ hardware, cloud account, or external API is needed.
 1. Introduce the original paper: a small quantized CNN, one-second 32×31
    Mel-filterbank input, a random 80/20 TESS-derived split, and a reported
    99.5% validation accuracy.
+   The paper is available at
+   [the IORO publication page](https://ioro.org/ijcsa/article/577979314071/tinyml-based-speech-emotion-recognition-on-microcontrollers-using-quantized-cnns-and-mel-filterbank-energy-features).
 2. Explain the stronger evaluation protocol here: CREMA-D speaker-disjoint
    64/14/13 train/validation/test speakers, removal of label-conflicting exact
    duplicates, macro F1, three seeds, MUSAN held-out noise, and external

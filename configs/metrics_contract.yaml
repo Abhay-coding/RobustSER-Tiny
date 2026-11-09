@@ -1,0 +1,389 @@
+# RobustSER-Tiny Metrics Contract
+# SLO targets and metric definitions for observability
+
+service:
+  name: "robustser-tiny"
+  version: "E5"
+  description: "Speech Emotion Recognition - College Demonstration"
+
+# Training metrics (logged per epoch)
+training_metrics:
+  - name: "train_loss"
+    type: "gauge"
+    unit: "cross_entropy"
+    description: "Training cross-entropy loss per epoch"
+    slo:
+      target: "< 2.0"
+      warning: "> 1.5"
+      critical: "> 3.0"
+
+  - name: "train_macro_f1"
+    type: "gauge"
+    unit: "f1_score"
+    description: "Training macro F1 score per epoch"
+    slo:
+      target: ">= 0.60"
+      warning: "< 0.50"
+      critical: "< 0.30"
+
+  - name: "validation_loss"
+    type: "gauge"
+    unit: "cross_entropy"
+    description: "Validation cross-entropy loss per epoch"
+    slo:
+      target: "< 1.5"
+      warning: "> 2.0"
+      critical: "> 3.5"
+
+  - name: "validation_macro_f1"
+    type: "gauge"
+    unit: "f1_score"
+    description: "Validation macro F1 score per epoch (primary selection metric)"
+    slo:
+      target: ">= 0.60"
+      warning: "< 0.50"
+      critical: "< 0.30"
+
+  - name: "validation_balanced_accuracy"
+    type: "gauge"
+    unit: "accuracy"
+    description: "Validation balanced accuracy (UAR) per epoch"
+    slo:
+      target: ">= 0.60"
+      warning: "< 0.50"
+      critical: "< 0.30"
+
+  - name: "epoch_duration_seconds"
+    type: "histogram"
+    unit: "seconds"
+    description: "Wall-clock time per training epoch"
+    slo:
+      target: "< 30"
+      warning: "> 60"
+      critical: "> 120"
+
+  - name: "learning_rate"
+    type: "gauge"
+    unit: "rate"
+    description: "Current learning rate"
+
+# Calibration metrics (logged per epoch on validation set)
+calibration_metrics:
+  - name: "validation_ece"
+    type: "gauge"
+    unit: "ece"
+    description: "Expected Calibration Error on validation set (15 bins, temperature=1.0)"
+    slo:
+      target: "< 0.05"
+      warning: "> 0.10"
+      critical: "> 0.20"
+
+  - name: "validation_ece_temperature_scaled"
+    type: "gauge"
+    unit: "ece"
+    description: "ECE after temperature scaling on validation set"
+    slo:
+      target: "< 0.03"
+      warning: "> 0.05"
+      critical: "> 0.10"
+
+  - name: "temperature_parameter"
+    type: "gauge"
+    unit: "scalar"
+    description: "Fitted temperature parameter (T > 0)"
+
+  - name: "reliability_diagram_bins"
+    type: "histogram"
+    unit: "count"
+    description: "Per-bin counts for reliability diagram (confidence vs accuracy)"
+    bins: 15
+
+# Test metrics (logged once per run)
+test_metrics:
+  - name: "test_macro_f1"
+    type: "gauge"
+    unit: "f1_score"
+    description: "Held-out test macro F1 (single evaluation)"
+    slo:
+      target: ">= 0.60"
+      warning: "< 0.50"
+      critical: "< 0.30"
+
+  - name: "test_balanced_accuracy"
+    type: "gauge"
+    unit: "accuracy"
+    description: "Held-out test balanced accuracy (UAR)"
+    slo:
+      target: ">= 0.60"
+      warning: "< 0.50"
+      critical: "< 0.30"
+
+  - name: "test_accuracy"
+    type: "gauge"
+    unit: "accuracy"
+    description: "Held-out test raw accuracy"
+
+  - name: "test_ece"
+    type: "gauge"
+    unit: "ece"
+    description: "Expected Calibration Error on test set"
+    slo:
+      target: "< 0.05"
+      warning: "> 0.10"
+      critical: "> 0.20"
+
+  - name: "test_per_class_f1"
+    type: "gauge"
+    unit: "f1_score"
+    description: "Per-class F1 on test set"
+    labels: ["class"]
+    slo:
+      target: ">= 0.50"
+      warning: "< 0.35"
+      critical: "< 0.20"
+
+  - name: "test_confusion_matrix"
+    type: "histogram"
+    unit: "count"
+    description: "Full confusion matrix on test set"
+    labels: ["true_class", "predicted_class"]
+
+# Noisy evaluation metrics (per SNR)
+noisy_test_metrics:
+  - name: "noisy_test_macro_f1"
+    type: "gauge"
+    unit: "f1_score"
+    description: "Test macro F1 at specific SNR (dB)"
+    labels: ["snr_db"]
+    slo:
+      target:
+        "20": ">= 0.55"
+        "15": ">= 0.50"
+        "10": ">= 0.40"
+        "5": ">= 0.30"
+        "0": ">= 0.20"
+      warning:
+        "20": "< 0.45"
+        "15": "< 0.40"
+        "10": "< 0.30"
+        "5": "< 0.20"
+        "0": "< 0.10"
+
+  - name: "noisy_test_ece"
+    type: "gauge"
+    unit: "ece"
+    description: "ECE at specific SNR"
+    labels: ["snr_db"]
+    slo:
+      target: "< 0.10"
+      warning: "> 0.15"
+      critical: "> 0.25"
+
+# External evaluation metrics (RAVDESS)
+external_test_metrics:
+  - name: "external_macro_f1"
+    type: "gauge"
+    unit: "f1_score"
+    description: "Macro F1 on external RAVDESS corpus"
+    slo:
+      target: ">= 0.40"
+      warning: "< 0.30"
+      critical: "< 0.20"
+
+  - name: "external_ece"
+    type: "gauge"
+    unit: "ece"
+    description: "ECE on external RAVDESS corpus"
+    slo:
+      target: "< 0.10"
+      warning: "> 0.15"
+      critical: "> 0.25"
+
+# Inference/serving metrics (for demo and edge deployment)
+serving_metrics:
+  - name: "inference_latency_ms"
+    type: "histogram"
+    unit: "milliseconds"
+    description: "End-to-end inference latency (preprocess + model + postprocess)"
+    slo:
+      target: "p99 <= 50"
+      warning: "p99 > 100"
+      critical: "p99 > 200"
+    labels: ["device", "batch_size"]
+
+  - name: "model_confidence"
+    type: "histogram"
+    unit: "probability"
+    description: "Model's max softmax probability for predictions"
+    slo:
+      target: "mean > 0.70"
+      warning: "mean < 0.50"
+      critical: "mean < 0.35"
+
+  - name: "prediction_margin"
+    type: "histogram"
+    unit: "probability"
+    description: "Margin between top-1 and top-2 class probabilities"
+    slo:
+      target: "mean > 0.15"
+      warning: "mean < 0.10"
+      critical: "mean < 0.05"
+
+  - name: "ood_detection_rate"
+    type: "gauge"
+    unit: "rate"
+    description: "Rate of OOD inputs detected (confidence < 0.5 or margin < 0.1)"
+    slo:
+      target: "< 0.10"
+      warning: "> 0.20"
+      critical: "> 0.35"
+
+  - name: "audio_duration_seconds"
+    type: "histogram"
+    unit: "seconds"
+    description: "Duration of input audio recordings"
+
+  - name: "audio_rms_dbfs"
+    type: "histogram"
+    unit: "dBFS"
+    description: "RMS level of input audio in dBFS"
+
+# Edge/MCU deployment telemetry schema
+edge_telemetry:
+  - name: "edge_inference_latency_ms"
+    type: "histogram"
+    unit: "milliseconds"
+    description: "On-device inference latency (model forward pass only)"
+    slo:
+      target: "p99 <= 50"
+      warning: "p99 > 100"
+      critical: "p99 > 200"
+
+  - name: "edge_peak_ram_kb"
+    type: "gauge"
+    unit: "kilobytes"
+    description: "Peak RAM usage during inference"
+    slo:
+      target: "< 200"
+      warning: "> 300"
+      critical: "> 500"
+
+  - name: "edge_energy_per_inference_mj"
+    type: "gauge"
+    unit: "millijoules"
+    description: "Energy consumption per inference"
+    slo:
+      target: "< 10"
+      warning: "> 20"
+      critical: "> 50"
+
+  - name: "edge_ood_rate"
+    type: "gauge"
+    unit: "rate"
+    description: "OOD detection rate on edge device"
+    slo:
+      target: "< 0.10"
+      warning: "> 0.20"
+      critical: "> 0.35"
+
+  - name: "edge_model_load_time_ms"
+    type: "histogram"
+    unit: "milliseconds"
+    description: "Time to load model into memory on edge device"
+    slo:
+      target: "< 1000"
+      warning: "> 3000"
+      critical: "> 5000"
+
+# System metrics
+system_metrics:
+  - name: "gpu_memory_allocated_mb"
+    type: "gauge"
+    unit: "megabytes"
+    description: "GPU memory allocated during training"
+    slo:
+      target: "< 4000"
+      warning: "> 6000"
+      critical: "> 8000"
+
+  - name: "gpu_memory_reserved_mb"
+    type: "gauge"
+    unit: "megabytes"
+    description: "GPU memory reserved"
+
+  - name: "cpu_utilization_percent"
+    type: "gauge"
+    unit: "percent"
+    description: "CPU utilization during training"
+
+  - name: "disk_usage_mb"
+    type: "gauge"
+    unit: "megabytes"
+    description: "Disk usage for checkpoints and logs"
+
+# Alerting rules
+alerts:
+  - name: "validation_macro_f1_drop"
+    metric: "validation_macro_f1"
+    condition: "drop > 0.03 compared to previous epoch"
+    severity: "warning"
+    description: "Validation macro F1 dropped more than 3 percentage points epoch-over-epoch"
+
+  - name: "training_loss_nan"
+    metric: "train_loss"
+    condition: "is_nan OR is_inf"
+    severity: "critical"
+    description: "Training loss became NaN or infinite"
+
+  - name: "gpu_oom"
+    metric: "gpu_memory_allocated_mb"
+    condition: ">= 95% of GPU capacity"
+    severity: "critical"
+    description: "GPU out of memory imminent"
+
+  - name: "early_stopping_triggered"
+    metric: "epochs_without_improvement"
+    condition: ">= early_stopping_patience"
+    severity: "info"
+    description: "Training stopped early due to no improvement"
+
+  - name: "test_macro_f1_below_threshold"
+    metric: "test_macro_f1"
+    condition: "< 0.50"
+    severity: "warning"
+    description: "Held-out test macro F1 below acceptable threshold"
+
+  - name: "calibration_degraded"
+    metric: "validation_ece"
+    condition: "> 0.10"
+    severity: "warning"
+    description: "Validation ECE exceeds 10% - model poorly calibrated"
+
+  - name: "inference_latency_spike"
+    metric: "inference_latency_ms"
+    condition: "p99 > 100"
+    severity: "warning"
+    description: "Inference p99 latency exceeds 100ms"
+
+  - name: "edge_ram_exceeded"
+    metric: "edge_peak_ram_kb"
+    condition: "> 500"
+    severity: "critical"
+    description: "Edge device RAM usage exceeds 500KB limit"
+
+  - name: "ood_surge"
+    metric: "ood_detection_rate"
+    condition: "> 0.35"
+    severity: "critical"
+    description: "OOD detection rate exceeds 35% - possible distribution shift"
+
+# Correlation IDs for tracing
+correlation_ids:
+  - "experiment_id"
+  - "run_id"
+  - "epoch"
+  - "seed"
+  - "split"  # train, validation, test, noisy_test, external_test
+  - "snr_db"  # for noisy evaluations
+  - "device"  # cpu, cuda, mcu
+  - "request_id"  # for inference requests

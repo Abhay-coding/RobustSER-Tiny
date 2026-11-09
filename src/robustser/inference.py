@@ -18,7 +18,10 @@ from robustser.data.cremad import FEATURE_EXTRACTORS, TASK_LABELS
 from robustser.features.log_mel import SAMPLE_RATE, fit_audio_window
 from robustser.models import build_model
 
-MAX_DEMO_DURATION_SECONDS = 60.0
+# The classroom demo accepts a full five-minute recording.  E5 still uses its
+# fixed two-second centre window, and the UI recommends a 2.5-second sentence
+# because CREMA-D training clips average 2.55 seconds (median 2.50 seconds).
+MAX_DEMO_DURATION_SECONDS = 300.0
 
 
 def decode_wav_bytes(audio_bytes: bytes) -> tuple[np.ndarray, int]:
@@ -46,7 +49,10 @@ def decode_wav_bytes(audio_bytes: bytes) -> tuple[np.ndarray, int]:
     if sample_rate <= 0 or not np.isfinite(audio).all():
         raise ValueError("The WAV file has an invalid sample rate or samples.")
     if audio.size / sample_rate > MAX_DEMO_DURATION_SECONDS:
-        raise ValueError(f"Please provide a recording no longer than {MAX_DEMO_DURATION_SECONDS:g} seconds.")
+        raise ValueError(
+            "Please provide a recording no longer than "
+            f"{MAX_DEMO_DURATION_SECONDS / 60:g} minutes."
+        )
     return np.clip(audio, -1.0, 1.0), int(sample_rate)
 
 

@@ -69,4 +69,7 @@ across corpora and severe noise remains the limiting problem.
 - Only three random seeds were used, producing wide confidence intervals.
 - RAVDESS was external-only and not used for transfer learning.
 - No physical-device deployment measurements were performed.
-- Calibration did not improve validation ECE in the canonical E4 run.
+- Temperature calibration did not improve validation ECE: across the three E5
+  validation checkpoints, mean ECE changed from 0.0458 before scaling to
+  0.0577 after scaling. The demo therefore displays uncalibrated probabilities
+  together with explicit uncertainty warnings.
