@@ -1,0 +1,53 @@
+{
+  "records": {
+    "train": 5247,
+    "validation": 1123,
+    "test": 1066
+  },
+  "speakers": {
+    "train": 64,
+    "validation": 14,
+    "test": 13
+  },
+  "class_counts": {
+    "train": {
+      "Angry": 896,
+      "Disgust": 896,
+      "Fear": 896,
+      "Happy": 896,
+      "Neutral": 767,
+      "Sad": 896
+    },
+    "validation": {
+      "Angry": 192,
+      "Disgust": 192,
+      "Fear": 192,
+      "Happy": 192,
+      "Neutral": 163,
+      "Sad": 192
+    },
+    "test": {
+      "Angry": 182,
+      "Disgust": 182,
+      "Fear": 182,
+      "Happy": 182,
+      "Neutral": 156,
+      "Sad": 182
+    }
+  },
+  "labels": [
+    "Angry",
+    "Disgust",
+    "Fear",
+    "Happy",
+    "Neutral",
+    "Sad"
+  ],
+  "seed": 20261108,
+  "ratios": {
+    "train": 0.7,
+    "validation": 0.15,
+    "test": 0.15
+  },
+  "source_manifest": "data/manifests/crema_d_eligible_modeling_manifest.csv"
+}

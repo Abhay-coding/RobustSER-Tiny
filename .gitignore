@@ -1,0 +1,29 @@
+# Raw, immutable source data is intentionally not stored in Git.
+dataset/AudioWAV/
+dataset/MUSAN/
+dataset/RAVDESS/
+
+# Local environments and generated runtime files.
+.venv/
+__pycache__/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+*.py[cod]
+results/
+checkpoints/
+mlruns/
+*.log
+
+# Local agent/editor state.
+.claude-flow/
+.swarm/
+.streamlit/secrets.toml
+
+# Operating-system and accidental local files.
+.DS_Store
+Thumbs.db
+0.65

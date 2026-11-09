@@ -1,0 +1,23 @@
+target:
+  board: ESP32-S3-DevKitC-1-N16R8
+  chip: esp32s3
+  flash_mb: 16
+  psram_mb: 8
+  framework: esp-idf
+  runtime: esp-dl
+
+artifact:
+  experiment: E4_depthwise_separable_cnn
+  canonical_seed: 20261108
+  checkpoint: results/E4_seed20261108/best_validation_macro_f1.pt
+  selection_reason: >
+    Canonical pre-registered seed for reproducible deployment engineering;
+    not selected as the highest-scoring test run.
+  input_shape: [1, 1, 32, 31]
+  input_type: float32
+  target_type: int8
+  export_intermediate: onnx
+
+constraints:
+  supported_operators: [Conv2D, Relu, MaxPool2D, GlobalAveragePool, Dropout, Gemm]
+  prohibit_test_set_for_deployment_selection: true

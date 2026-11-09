@@ -1,0 +1,31 @@
+protocol_name: crema_d_speaker_independent_v1
+source_manifest: data/manifests/crema_d_speaker_splits.csv
+quality_report: data/manifests/crema_d_audio_quality.csv
+duplicate_conflict_report: data/manifests/crema_d_duplicate_conflicts.csv
+split_seed: 20261108
+
+# These assignments are frozen. Model runs must consume this manifest rather
+# than construct new train/validation/test partitions.
+splits:
+  train: train
+  validation: validation
+  test: test
+
+tasks:
+  five_emotion_common:
+    labels: [Angry, Disgust, Fear, Happy, Neutral]
+    excluded_labels: [Sad]
+    primary_metric: macro_f1
+    description: Common-label benchmark for later cross-corpus comparison.
+  crema_d_six_emotion:
+    labels: [Angry, Disgust, Fear, Happy, Neutral, Sad]
+    excluded_labels: []
+    primary_metric: macro_f1
+    description: Full CREMA-D benchmark; not directly comparable with five-label results.
+
+integrity_rules:
+  speaker_disjoint: true
+  exact_hash_disjoint: true
+  raw_audio_immutable: true
+  augmented_audio_inherits_source_split: true
+  test_split_used_for_model_selection: false

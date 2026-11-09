@@ -1,0 +1,60 @@
+experiment:
+  id: E4_depthwise_separable_cnn
+  task: crema_d_six_emotion
+  seed: 20261108
+  deterministic_algorithms: true
+  notes: >
+    Controlled architecture ablation relative to E3. MFCC features and all
+    data/training factors remain fixed; only the CNN is depthwise-separable.
+
+data:
+  protocol: configs/data_protocol.yaml
+  manifest: data/manifests/crema_d_speaker_splits.csv
+  sample_rate_hz: 16000
+  train_window_seconds: 1.0
+  evaluation_window_policy: center_crop_or_zero_pad
+  train_window_policy: seeded_random_crop_or_zero_pad
+  normalization: per_utterance_mean_variance
+  augmentation: none
+
+features:
+  type: mfcc
+  mel_filters: 32
+  mfcc_coefficients: 32
+  frame_length_ms: 32
+  frame_stride_ms: 32
+  fft_size: 512
+  log_floor: 1.0e-6
+  expected_shape: [32, 31]
+
+model:
+  name: depthwise_separable_cnn
+  input_channels: 1
+  channels: [8, 16, 20]
+  dropout: 0.20
+  global_average_pooling: true
+  output_classes_from_task: true
+
+training:
+  optimizer: adam
+  learning_rate: 0.005
+  batch_size: 32
+  max_epochs: 80
+  selection_metric: validation_macro_f1
+  early_stopping_patience: 12
+  checkpoint_policy: best_validation_macro_f1
+  num_data_loader_workers: 0
+
+evaluation:
+  primary_metric: macro_f1
+  secondary_metrics: [balanced_accuracy, uar, accuracy, per_class_precision, per_class_recall]
+  report_confusion_matrix: true
+  evaluate_test_once_after_model_selection: true
+
+replication:
+  seeds: [20261108, 20261109, 20261110]
+  selection_rule: Select only with clean validation macro F1; test once after selection.
+
+deployment:
+  target_quantization: int8
+  quantization_applied_in_experiment: false

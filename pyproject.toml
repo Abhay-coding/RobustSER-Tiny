@@ -1,0 +1,25 @@
+[project]
+name = "robustser-tiny"
+version = "0.1.0"
+description = "Reproducible speaker-independent TinyML speech emotion recognition research."
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=2.0",
+  "PyYAML>=6.0",
+  "torch>=2.5",
+  "onnx>=1.16",
+  "onnxscript>=0.1",
+  "scipy>=1.10",
+]
+
+[project.optional-dependencies]
+demo = [
+  "streamlit>=1.39",
+  "pandas>=2.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
