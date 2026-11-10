@@ -26,7 +26,10 @@ def styles() -> None:
     <style>
       :root { --navy:#1E3A5F; --blue:#2563EB; --ink:#0F172A; --muted:#475569; --line:#CBD5E1; --wash:#F8FAFC; --paper:#FFFFFF; --gold:#A16207; }
       .stApp { background:var(--paper); color:var(--ink); }
-      .block-container { max-width:1120px; padding:2.8rem 2rem 5rem; }
+      header[data-testid="stHeader"] { display:none!important; }
+      [data-testid="stToolbar"], [data-testid="stDecoration"] { display:none!important; }
+      [data-testid="stAppViewContainer"], [data-testid="stMain"] { padding-top:0!important; }
+      [data-testid="stMain"] .block-container, .block-container { max-width:1120px; padding:.5rem 2rem 5rem!important; }
       .rs-masthead { border-top:8px solid var(--navy); border-bottom:1px solid var(--line); padding:1.35rem 0 1.5rem; margin-bottom:2rem; }
       .rs-kicker { color:var(--blue)!important; font-size:.75rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin:0 0 .55rem; }
       .rs-masthead h1 { color:var(--navy)!important; font-family:Georgia,"Times New Roman",serif!important; font-size:clamp(2.25rem,5vw,4rem)!important; letter-spacing:-.03em; margin:0!important; }
@@ -40,18 +43,33 @@ def styles() -> None:
       h2,h3 { color:var(--navy)!important; font-family:Georgia,"Times New Roman",serif!important; }
       .rs-lead { color:var(--muted)!important; font-size:1.05rem; line-height:1.65; max-width:75ch; }
       .rs-note { background:var(--wash); border-left:4px solid var(--navy); padding:1rem 1.15rem; margin:1.25rem 0; line-height:1.55; }
+      .rs-disclaimer { background:#FFF8DB; border-left:4px solid var(--gold); color:var(--ink)!important; padding:1rem 1.15rem; margin:1rem 0; line-height:1.55; }
+      .rs-disclaimer * { color:var(--ink)!important; }
+      .rs-input-heading { border-left:4px solid var(--navy); padding:.15rem 0 .15rem 1rem; margin:1.55rem 0 .8rem; }
+      .rs-input-heading small { color:var(--blue)!important; font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+      .rs-input-heading strong { color:var(--navy)!important; display:block; font-family:Georgia,"Times New Roman",serif; font-size:1.25rem; margin:.18rem 0; }
+      .rs-input-heading span { color:var(--muted)!important; font-size:.92rem; }
+      .rs-helper { background:var(--wash); border:1px solid var(--line); color:var(--muted)!important; padding:.85rem 1rem; margin:1rem 0; font-size:.94rem; }
+      .rs-helper strong { color:var(--navy)!important; }
+      .rs-choice-caption { color:var(--muted)!important; margin:.65rem 0 .2rem; font-size:.92rem; }
       .rs-table { width:100%; border-collapse:collapse; margin:1rem 0 1.5rem; font-size:.95rem; }
       .rs-table th { background:var(--navy); color:#fff; text-align:left; padding:.7rem .8rem; }
       .rs-table td { border-bottom:1px solid var(--line); padding:.7rem .8rem; vertical-align:top; }
       .rs-table tr:nth-child(even) td { background:var(--wash); }
-      button[data-baseweb="tab"] { color:var(--muted)!important; font-weight:700; }
-      button[data-baseweb="tab"][aria-selected="true"] { color:var(--navy)!important; border-bottom:3px solid var(--blue)!important; }
+      [data-baseweb="tab-list"] { gap:.55rem; border-bottom:0!important; margin:1.35rem 0 1.65rem; }
+      button[data-baseweb="tab"] { background:var(--wash)!important; border:1px solid var(--line)!important; border-radius:4px!important; color:var(--navy)!important; font-weight:700; min-height:42px; padding:.55rem 1rem!important; }
+      button[data-baseweb="tab"][aria-selected="true"] { background:var(--navy)!important; border-color:var(--navy)!important; color:#fff!important; }
       .stButton>button,[data-testid="stDownloadButton"]>button { min-height:44px; border-radius:4px; font-weight:700; }
+      .stButton>button:not([kind="primary"]) { background:#fff!important; border-color:var(--navy)!important; color:var(--navy)!important; }
       .stButton>button[kind="primary"] { background:var(--navy)!important; border-color:var(--navy)!important; color:#fff!important; }
       .stButton>button:focus-visible,a:focus-visible,button[data-baseweb="tab"]:focus-visible { outline:3px solid var(--gold); outline-offset:3px; }
+      [data-testid="stFileUploader"], [data-testid="stFileUploaderDropzone"], [data-testid="stAudioInput"] { background:#fff!important; border-color:var(--line)!important; color:var(--ink)!important; }
       [data-testid="stFileUploader"] { border:1px dashed var(--line); border-radius:4px; padding:.65rem; }
+      [data-testid="stFileUploader"] *, [data-testid="stAudioInput"] *, [data-testid="stFileUploaderDropzone"] * { color:var(--ink)!important; }
+      [data-testid="stFileUploader"] button, [data-testid="stAudioInput"] button { background:#fff!important; border-color:var(--navy)!important; color:var(--navy)!important; }
+      [data-testid="stAudioInput"] > div, [data-testid="stAudioInput"] [data-baseweb] { background:#fff!important; }
       [data-testid="stMetric"] { border-left:3px solid var(--navy); background:var(--wash); padding:.7rem; }
-      @media(max-width:760px){ .block-container{padding:1.4rem 1rem 3rem}.rs-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rs-masthead h1{font-size:2.35rem!important;} }
+      @media(max-width:760px){ .block-container{padding:1.4rem 1rem 3rem!important}.rs-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rs-masthead h1{font-size:2.35rem!important;} }
     </style>
     """, unsafe_allow_html=True)
 
@@ -76,6 +94,12 @@ def evidence() -> None:
     <tr><td><strong>E5 · RobustSER benchmark</strong></td><td>Does the model generalise to speakers it never heard?</td><td>64/14/13 speaker-disjoint split, three seeds</td><td><strong>47.41% held-out test macro F1</strong></td></tr>
     </tbody></table>
     <div class='rs-note'><strong>How to read this:</strong> E8 demonstrates that the paper-style protocol can achieve a very high controlled score. E5 is deliberately harder: every final-test speaker is new to the model, and macro F1 gives every emotion equal weight. The two scores answer different questions.</div>
+    <table class='rs-table'><thead><tr><th>Protocol fact</th><th>Why it matters</th></tr></thead><tbody>
+    <tr><td>CREMA-D contains 91 speakers; TESS contains two actresses.</td><td>More speakers make it much harder to separate emotion from a person's normal voice characteristics.</td></tr>
+    <tr><td>E5 uses a frozen 64 / 14 / 13 speaker split.</td><td>Validation chooses the checkpoint; final-test speakers are never used for training or checkpoint selection.</td></tr>
+    <tr><td>E5 uses six labels and macro F1.</td><td>Every label receives equal importance, including difficult classes such as Fear and Disgust.</td></tr>
+    <tr><td>E5 improved E4 by +5.81 points across three seeds.</td><td>The 95% confidence interval excludes zero, supporting this as a measured rather than random improvement.</td></tr>
+    </tbody></table>
     """, unsafe_allow_html=True)
     st.link_button("Open the reference paper", REFERENCE_PAPER_URL)
 
@@ -90,23 +114,47 @@ def method() -> None:
     <tr><td>4. Predict</td><td>The 930-parameter E5 CNN returns six probabilities and uncertainty warnings.</td></tr>
     </tbody></table>
     """, unsafe_allow_html=True)
-    st.info(f"Training clips average 2.55 seconds. For the clearest demo, record about 2.5 seconds. The app accepts files up to {MAX_DEMO_DURATION_SECONDS / 60:g} minutes.")
-    st.warning("This is a research demonstration of acted-speech dataset labels, not a real-emotion, mental-health, or truthfulness assessment.")
+    st.markdown(f"<div class='rs-note'><strong>Recording guidance:</strong> Training clips average 2.55 seconds. For the clearest demo, record about 2.5 seconds. The app accepts files up to {MAX_DEMO_DURATION_SECONDS / 60:g} minutes.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='rs-disclaimer'><strong>Research boundary:</strong> This demonstration predicts acted-speech dataset labels. It is not a real-emotion, mental-health, or truthfulness assessment.</div>", unsafe_allow_html=True)
 
 
 def classifier() -> None:
-    st.markdown("<h2>Classify a recording</h2><p class='rs-lead'>Upload a WAV recording or use your microphone. Inference is local.</p>", unsafe_allow_html=True)
-    use_reference = bool(st.session_state.get("use_reference_clip", False))
-    if LOCAL_REFERENCE_CLIP.is_file() and st.button("Use the built-in reference recording"):
-        st.session_state["use_reference_clip"] = True; use_reference = True
-    upload = st.file_uploader("Upload a WAV recording", type=["wav"], help="A short acted sentence gives the most representative result.")
-    recorded = st.audio_input("Or record from your microphone")
+    st.markdown("<h2>Classify a recording</h2><p class='rs-lead'>Choose one input method below. The prediction runs locally on this computer.</p>", unsafe_allow_html=True)
+    st.markdown("<div class='rs-helper'><strong>Best practice:</strong> use one clearly acted sentence, ideally around 2.5 seconds. The model uses the centre two seconds and returns probabilities for six acted-speech labels.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='rs-input-heading'><small>Demo input</small><strong>Choose your audio source</strong><span>Only the selected input is shown below.</span></div>", unsafe_allow_html=True)
+    if "demo_input_mode" not in st.session_state:
+        st.session_state.demo_input_mode = "Upload a WAV file"
+
+    def select_demo_input(mode: str) -> None:
+        st.session_state.demo_input_mode = mode
+
+    upload_col, record_col, sample_col = st.columns(3)
+    with upload_col:
+        st.button("Upload a WAV file", type="primary" if st.session_state.demo_input_mode == "Upload a WAV file" else "secondary", use_container_width=True, on_click=select_demo_input, args=("Upload a WAV file",))
+    with record_col:
+        st.button("Record with microphone", type="primary" if st.session_state.demo_input_mode == "Record with microphone" else "secondary", use_container_width=True, on_click=select_demo_input, args=("Record with microphone",))
+    with sample_col:
+        st.button("Use classroom sample", type="primary" if st.session_state.demo_input_mode == "Use classroom sample" else "secondary", use_container_width=True, on_click=select_demo_input, args=("Use classroom sample",))
+    input_mode = st.session_state.demo_input_mode
+
+    upload = None
+    recorded = None
+    use_reference = input_mode == "Use classroom sample" and LOCAL_REFERENCE_CLIP.is_file()
+    if input_mode == "Upload a WAV file":
+        st.markdown("<p class='rs-choice-caption'>Select a local WAV file. Your audio remains on this computer.</p>", unsafe_allow_html=True)
+        upload = st.file_uploader("Upload a WAV recording", type=["wav"], help="A short acted sentence gives the most representative result.")
+    elif input_mode == "Record with microphone":
+        st.markdown("<p class='rs-choice-caption'>Your browser will request microphone permission. The recording stays in this local demo.</p>", unsafe_allow_html=True)
+        recorded = st.audio_input("Record a short sentence")
+    else:
+        st.markdown("<div class='rs-note'><strong>Classroom sample loaded:</strong> a local CREMA-D acted-speech clip labelled <strong>Angry</strong>. It is included only to demonstrate the interface and is not a reported evaluation result.</div>", unsafe_allow_html=True)
+
     audio_source = recorded if recorded is not None else upload
     audio_bytes = LOCAL_REFERENCE_CLIP.read_bytes() if use_reference else (audio_source.getvalue() if audio_source else None)
     if audio_bytes is None:
         st.caption("Tip: use one clearly acted sentence. The model classifies only the centre two seconds.")
         return
-    if use_reference: st.caption("Built-in validation recording (Angry): demonstration input only, not a reported metric.")
+    if use_reference: st.caption("Local classroom sample (Angry): demonstration input only, not a reported metric.")
     st.audio(audio_bytes, format="audio/wav")
     if not st.button("Classify recording", type="primary"):
         return

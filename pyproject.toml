@@ -15,6 +15,7 @@ dependencies = [
 [project.optional-dependencies]
 demo = [
   "streamlit>=1.39",
+  "starlette>=0.40,<1",
   "pandas>=2.0",
 ]
 
