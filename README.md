@@ -152,7 +152,7 @@ For the robust E5 model, the input is a **two-second** recording window and a
 | E3 | Switched to MFCC features | 40.80% robust test macro F1 |
 | E4 | Used a 930-parameter depthwise-separable CNN | 41.60% robust test macro F1 |
 | E5 | Used two seconds of speech context | **47.41% robust test macro F1** |
-| E7 | Paper-style random-split comparison on CREMA-D | 47.25% validation macro-F1 mean |
+| E7 | Paper-style random-split comparison on CREMA-D | 47.27% validation macro-F1 mean |
 | E8 | TESS paper-style controlled replication | **99.50% validation macro F1** |
 
 ---
