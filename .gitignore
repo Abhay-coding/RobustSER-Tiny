@@ -29,6 +29,7 @@ build/
 *.pt
 *.pth
 *.ckpt
+*.safetensors
 
 # ONNX exports
 *.onnx
@@ -72,29 +73,17 @@ dataset/MUSAN/
 dataset/RAVDESS/
 dataset/TESS/
 
-# Local environments and generated runtime files (additional)
-.venv/
-__pycache__/
-*.egg-info/
-build/
-dist/
-.pytest_cache/
-.coverage
-htmlcov/
-*.py[cod]
+# Generated experiment outputs and model artifacts.
 results/
 checkpoints/
-mlruns/
-*.log
+outputs/
 
 # Local agent/editor state.
 .claude-flow/
 .swarm/
 .streamlit/secrets.toml
 
-# Operating-system and accidental local files.
-.DS_Store
-Thumbs.db
-0.65
+# Accidental local files.
+/0.65
 /2
 /35%

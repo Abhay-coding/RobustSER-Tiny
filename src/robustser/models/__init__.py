@@ -8,6 +8,7 @@ def build_model(name: str, *, num_classes: int):
     models = {
         "paper_inspired_small_cnn": PaperInspiredSmallCNN,
         "depthwise_separable_cnn": DepthwiseSeparableCNN,
+        "depthwise_separable_cnn_wide": lambda num_classes: DepthwiseSeparableCNN(num_classes, channels=(32, 64, 96)),
     }
     try:
         return models[name](num_classes=num_classes)

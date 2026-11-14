@@ -52,6 +52,12 @@ def styles() -> None:
       .rs-helper { background:var(--wash); border:1px solid var(--line); color:var(--muted)!important; padding:.85rem 1rem; margin:1rem 0; font-size:.94rem; }
       .rs-helper strong { color:var(--navy)!important; }
       .rs-choice-caption { color:var(--muted)!important; margin:.65rem 0 .2rem; font-size:.92rem; }
+      .rs-result-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; margin:1.25rem 0; }
+      .rs-result-card { background:var(--wash); border-left:4px solid var(--navy); padding:1rem 1.1rem; min-height:112px; }
+      .rs-result-card small { color:var(--muted)!important; display:block; font-size:.72rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
+      .rs-result-card strong { color:var(--navy)!important; display:block; font-family:Georgia,"Times New Roman",serif; font-size:1.8rem; margin:.35rem 0 0; }
+      .rs-prediction-note { background:#FFF8DB; border-left:4px solid var(--gold); color:var(--ink)!important; padding:.9rem 1rem; margin:.8rem 0; line-height:1.5; }
+      .rs-prediction-note * { color:var(--ink)!important; }
       .rs-table { width:100%; border-collapse:collapse; margin:1rem 0 1.5rem; font-size:.95rem; }
       .rs-table th { background:var(--navy); color:#fff; text-align:left; padding:.7rem .8rem; }
       .rs-table td { border-bottom:1px solid var(--line); padding:.7rem .8rem; vertical-align:top; }
@@ -62,6 +68,7 @@ def styles() -> None:
       .stButton>button,[data-testid="stDownloadButton"]>button { min-height:44px; border-radius:4px; font-weight:700; }
       .stButton>button:not([kind="primary"]) { background:#fff!important; border-color:var(--navy)!important; color:var(--navy)!important; }
       .stButton>button[kind="primary"] { background:var(--navy)!important; border-color:var(--navy)!important; color:#fff!important; }
+      [data-testid="stDownloadButton"]>button { background:var(--navy)!important; border-color:var(--navy)!important; color:#fff!important; }
       .stButton>button:focus-visible,a:focus-visible,button[data-baseweb="tab"]:focus-visible { outline:3px solid var(--gold); outline-offset:3px; }
       [data-testid="stFileUploader"], [data-testid="stFileUploaderDropzone"], [data-testid="stAudioInput"] { background:#fff!important; border-color:var(--line)!important; color:var(--ink)!important; }
       [data-testid="stFileUploader"] { border:1px dashed var(--line); border-radius:4px; padding:.65rem; }
@@ -69,17 +76,17 @@ def styles() -> None:
       [data-testid="stFileUploader"] button, [data-testid="stAudioInput"] button { background:#fff!important; border-color:var(--navy)!important; color:var(--navy)!important; }
       [data-testid="stAudioInput"] > div, [data-testid="stAudioInput"] [data-baseweb] { background:#fff!important; }
       [data-testid="stMetric"] { border-left:3px solid var(--navy); background:var(--wash); padding:.7rem; }
-      @media(max-width:760px){ .block-container{padding:1.4rem 1rem 3rem!important}.rs-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rs-masthead h1{font-size:2.35rem!important;} }
+      @media(max-width:760px){ .block-container{padding:1.4rem 1rem 3rem!important}.rs-grid,.rs-result-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rs-masthead h1{font-size:2.35rem!important;} }
     </style>
     """, unsafe_allow_html=True)
 
 
 def stat_grid() -> None:
     cards = [
-        ("Robust E5 result", "47.41%", "Held-out macro F1 on unseen speakers"),
+        ("Best pretrained E18", "72.62%", "Single-run validation macro F1"),
+        ("Tiny E5 result", "47.41%", "Held-out test macro F1, three-seed mean"),
         ("Paper-style E8", "99.50%", "TESS random-split validation macro F1"),
-        ("Model size", "930", "Trainable parameters in E5"),
-        ("Measured gain", "+5.81 pp", "E5 improvement over E4"),
+        ("Live model size", "930", "Trainable parameters in E5"),
     ]
     html = "<div class='rs-grid'>" + "".join(f"<article class='rs-stat'><small>{a}</small><strong>{b}</strong><span>{c}</span></article>" for a,b,c in cards) + "</div>"
     st.markdown(html, unsafe_allow_html=True)
@@ -92,8 +99,23 @@ def evidence() -> None:
     <tr><td><strong>E8 · TESS replication</strong></td><td>Can the compact paper-style CNN learn a clean controlled benchmark?</td><td>Five emotions, random 80/20 split</td><td><strong>99.50% validation macro F1</strong></td></tr>
     <tr><td><strong>E7 · CREMA-D comparison</strong></td><td>Does simply using a random split reproduce that result on a varied corpus?</td><td>Three random-split runs</td><td><strong>47.27% mean validation macro F1</strong></td></tr>
     <tr><td><strong>E5 · RobustSER benchmark</strong></td><td>Does the model generalise to speakers it never heard?</td><td>64/14/13 speaker-disjoint split, three seeds</td><td><strong>47.41% held-out test macro F1</strong></td></tr>
+    <tr><td><strong>E18 · Pretrained speech model</strong></td><td>Can fine-tuning a larger speech model improve validation performance?</td><td>CREMA-D speaker-disjoint validation, one run</td><td><strong>72.62% validation macro F1</strong></td></tr>
+    <tr><td><strong>E19 · Alternative class weights</strong></td><td>Did giving Sad more weight help?</td><td>Same validation speakers, one run</td><td><strong>71.25% validation macro F1</strong></td></tr>
     </tbody></table>
-    <div class='rs-note'><strong>How to read this:</strong> E8 demonstrates that the paper-style protocol can achieve a very high controlled score. E5 is deliberately harder: every final-test speaker is new to the model, and macro F1 gives every emotion equal weight. The two scores answer different questions.</div>
+    <div class='rs-note'><strong>How to read this:</strong> E18 is a larger pretrained model, not the tiny E5 model used by the live classifier. Its 72.62% is a single-run validation score, not a held-out test score. The same validation speakers guided many experiments, so a fresh evaluation is needed before claiming generalisation. E8 uses a different dataset and split; its score is not directly comparable.</div>
+    <h3>How the pretrained experiments progressed</h3>
+    <table class='rs-table'><thead><tr><th>Experiment</th><th>Approach</th><th>Validation macro F1</th></tr></thead><tbody>
+    <tr><td>E11</td><td>Frozen pretrained Wav2Vec2 encoder</td><td>58.65%</td></tr>
+    <tr><td>E12</td><td>Fine-tuned two encoder layers</td><td>60.86%</td></tr>
+    <tr><td>E13</td><td>Continued fine-tuning</td><td>69.63%</td></tr>
+    <tr><td>E14</td><td>Fine-tuned six layers</td><td>69.94%</td></tr>
+    <tr><td>E15</td><td>Eight layers and class weights</td><td>70.06%</td></tr>
+    <tr><td>E16</td><td>Corrected weighted-loss accumulation</td><td>70.86%</td></tr>
+    <tr><td>E17</td><td>Emphasis on Fear</td><td>71.10%</td></tr>
+    <tr><td><strong>E18</strong></td><td>Continued E17 training; best at epoch 2</td><td><strong>72.62%</strong></td></tr>
+    <tr><td>E19</td><td>More weight on Sad</td><td>71.25%</td></tr>
+    </tbody></table>
+    <div class='rs-note'><strong>E18 class results:</strong> Angry 78.68%, Disgust 71.63%, Fear 61.58%, Happy 82.60%, Neutral 79.23%, Sad 61.98% F1 on validation speakers. These numbers guided subsequent experiments and are exploratory.</div>
     <table class='rs-table'><thead><tr><th>Protocol fact</th><th>Why it matters</th></tr></thead><tbody>
     <tr><td>CREMA-D contains 91 speakers; TESS contains two actresses.</td><td>More speakers make it much harder to separate emotion from a person's normal voice characteristics.</td></tr>
     <tr><td>E5 uses a frozen 64 / 14 / 13 speaker split.</td><td>Validation chooses the checkpoint; final-test speakers are never used for training or checkpoint selection.</td></tr>
@@ -120,6 +142,7 @@ def method() -> None:
 
 def classifier() -> None:
     st.markdown("<h2>Classify a recording</h2><p class='rs-lead'>Choose one input method below. The prediction runs locally on this computer.</p>", unsafe_allow_html=True)
+    st.markdown("<div class='rs-note'><strong>Live model: E5.</strong> This demo uses the 930-parameter model, not the larger E18 model. The 72.62% figure above describes E18 validation research, not the predictions shown here.</div>", unsafe_allow_html=True)
     st.markdown("<div class='rs-helper'><strong>Best practice:</strong> use one clearly acted sentence, ideally around 2.5 seconds. The model uses the centre two seconds and returns probabilities for six acted-speech labels.</div>", unsafe_allow_html=True)
     st.markdown("<div class='rs-input-heading'><small>Demo input</small><strong>Choose your audio source</strong><span>Only the selected input is shown below.</span></div>", unsafe_allow_html=True)
     if "demo_input_mode" not in st.session_state:
@@ -166,13 +189,17 @@ def classifier() -> None:
             mfcc = extract_mfcc(window)
     except (ValueError, FileNotFoundError) as error:
         st.error(str(error)); return
-    a,b,c = st.columns(3); info = result["audio"]
-    a.metric("Predicted label", result["predicted_label"]); b.metric("Confidence", f"{100*result['confidence']:.1f}%"); c.metric("Duration", f"{info['duration_seconds']:.2f} s")
+    info = result["audio"]
+    st.markdown(
+        f"<section class='rs-result-grid'><article class='rs-result-card'><small>Predicted label</small><strong>{result['predicted_label']}</strong></article><article class='rs-result-card'><small>Model confidence</small><strong>{100 * result['confidence']:.1f}%</strong></article><article class='rs-result-card'><small>Recording duration</small><strong>{info['duration_seconds']:.2f} s</strong></article></section>",
+        unsafe_allow_html=True,
+    )
     probabilities = pd.DataFrame({"Emotion": list(result["probabilities"]), "Probability": list(result["probabilities"].values())}).sort_values("Probability", ascending=False)
     st.subheader("Model probabilities"); st.bar_chart(probabilities, x="Emotion", y="Probability"); st.dataframe(probabilities.style.format({"Probability":"{:.1%}"}), hide_index=True, use_container_width=True)
     with st.expander("Inspect the model input"):
         st.image(mfcc, clamp=True, caption="32 × 62 MFCC input to E5")
-    for warning in result["warnings"]: st.warning(warning)
+    for warning in result["warnings"]:
+        st.markdown(f"<div class='rs-prediction-note'><strong>Prediction note:</strong> {warning}</div>", unsafe_allow_html=True)
     st.download_button("Download prediction JSON", prediction_json(result), "robustser_prediction.json", "application/json")
 
 

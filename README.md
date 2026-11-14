@@ -63,7 +63,25 @@ memorising a familiar speaker's voice.
 
 ---
 
-## Our main robust result
+## Our results: tiny model and larger pretrained model
+
+We explored two different approaches. **E5** is the tiny model used by the
+website. **E18** uses a much larger pretrained Wav2Vec2 model and is our best
+exploratory validation result so far.
+
+| Approach | Result | What it measures |
+| --- | ---: | --- |
+| E5 tiny CNN | **47.41%** | Held-out CREMA-D test macro F1, mean of three seeds |
+| E18 pretrained Wav2Vec2 | **72.62%** | CREMA-D validation macro F1, one run; test not evaluated |
+| E19 pretrained Wav2Vec2 | **71.25%** | Same validation speakers, one run; test not evaluated |
+
+These numbers should not be compared as a direct test-set improvement: they
+use different models and evaluation stages. E18's validation speakers have
+guided repeated experiments, so its score may be optimistic. A fresh evaluation
+and independent runs are needed before claiming unseen-speaker performance.
+E18's larger model is not a 930-parameter TinyML model.
+
+### E5: the tiny model
 
 | Result | Value | Plain-English meaning |
 | --- | ---: | --- |
@@ -73,7 +91,7 @@ memorising a familiar speaker's voice.
 | Model size | **930 parameters** | The model is intentionally very small. |
 | Improvement over E4 | **+5.81 points** | Two seconds of context improved the robust model. |
 
-## Why 47.41% is not a bad score
+## Why the scores answer different questions
 
 At first glance, 47.41% looks much lower than 99.50%. But these results come
 from **different tests**. Comparing them directly would be like comparing a
@@ -154,6 +172,22 @@ For the robust E5 model, the input is a **two-second** recording window and a
 | E5 | Used two seconds of speech context | **47.41% robust test macro F1** |
 | E7 | Paper-style random-split comparison on CREMA-D | 47.27% validation macro-F1 mean |
 | E8 | TESS paper-style controlled replication | **99.50% validation macro F1** |
+| E9 | Wider CNN, two seconds of speech | 52.93% validation macro F1, one run |
+| E10 | Wider CNN, three seconds of speech | 54.64% validation macro F1, one run |
+| E11 | Frozen pretrained Wav2Vec2 encoder | 58.65% validation macro F1, one run |
+| E12 | Fine-tuned the last two encoder layers | 60.86% validation macro F1, one run |
+| E13 | Continued fine-tuning | 69.63% validation macro F1, one run |
+| E14 | Fine-tuned six layers | 69.94% validation macro F1, one run |
+| E15 | Fine-tuned eight layers with class weights | 70.06% validation macro F1, one run |
+| E16 | Corrected weighted-loss accumulation | 70.86% validation macro F1, one run |
+| E17 | Adjusted class weights | 71.10% validation macro F1, one run |
+| E18 | Continued E17 training | **72.62% validation macro F1, one run** |
+| E19 | Increased Sad class weight | 71.25% validation macro F1, one run |
+
+E13 was interrupted; its saved checkpoint was subsequently evaluated on the
+validation split. E15 used per-microbatch weighted loss, which can dilute the
+intended weights; E16 and later use corrected accumulation. All E9–E19 numbers
+above are validation results, not final test scores.
 
 ---
 
@@ -161,12 +195,13 @@ For the robust E5 model, the input is a **two-second** recording window and a
 
 The Streamlit website runs locally on your computer. It accepts a WAV file or
 microphone recording and shows the predicted label, probabilities, confidence,
-waveform, and the MFCC feature image used by the model.
+and the MFCC feature image used by the model. **The live classifier uses E5,**
+not the E18 pretrained checkpoint; the research tab reports both separately.
 
 ```powershell
 Set-Location 'D:\Vs code\RobustSER-Tiny'
 $env:PYTHONPATH = 'src'
-python -m streamlit run demo/app.py
+py -3.11 -m streamlit run demo/app.py --server.port 8504
 ```
 
 For the most representative demo prediction, speak one clearly acted sentence
@@ -185,8 +220,9 @@ the centre two-second window.
 > validation macro F1. The paper also notes that real-life recordings are more
 > difficult, so we tested the same core idea on CREMA-D with completely unseen
 > speakers. That stricter test gave 47.41% macro F1, and we improved it by 5.81
-> points using two seconds of speech context while keeping the model tiny. This
-> shows both controlled benchmark performance and a more honest robustness test.”
+> points using two seconds of speech context while keeping the model tiny. We
+> also explored a larger pretrained speech model, reaching 72.62% on validation
+> speakers. That newer result has not yet been tested on a fresh held-out set.”
 
 ---
 
