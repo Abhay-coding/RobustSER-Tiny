@@ -120,6 +120,9 @@ def main():
                 predictions.append(head(features).argmax(dim=1).cpu()); targets.append(labels)
         metrics = classification_metrics(total_loss=0.0, targets=torch.cat(targets), predictions=torch.cat(predictions), num_classes=len(LABELS))
         score = metrics.macro_f1
+        record = {"epoch": epoch, "split": "validation", "macro_f1": score, "accuracy": metrics.accuracy, "per_class_f1": metrics.per_class_f1, "per_class_recall": metrics.per_class_recall, "confusion_matrix": metrics.confusion_matrix, "labels": list(LABELS)}
+        with (args.run_dir / "metrics.jsonl").open("a", encoding="utf-8") as metrics_file:
+            metrics_file.write(json.dumps(record) + "\n")
         print(f"Epoch {epoch:03d}: validation_macro_f1={score:.4f}", flush=True)
         if score > best:
             best, best_epoch = score, epoch

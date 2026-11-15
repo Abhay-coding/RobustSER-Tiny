@@ -83,7 +83,7 @@ def styles() -> None:
 
 def stat_grid() -> None:
     cards = [
-        ("Best pretrained E18", "72.62%", "Single-run validation macro F1"),
+        ("Noise pilot", "+21.91 pp", "Mean gain at 10 dB, three exploratory pairs"),
         ("Tiny E5 result", "47.41%", "Held-out test macro F1, three-seed mean"),
         ("Paper-style E8", "99.50%", "TESS random-split validation macro F1"),
         ("Live model size", "930", "Trainable parameters in E5"),
@@ -100,9 +100,19 @@ def evidence() -> None:
     <tr><td><strong>E7 · CREMA-D comparison</strong></td><td>Does simply using a random split reproduce that result on a varied corpus?</td><td>Three random-split runs</td><td><strong>47.27% mean validation macro F1</strong></td></tr>
     <tr><td><strong>E5 · RobustSER benchmark</strong></td><td>Does the model generalise to speakers it never heard?</td><td>64/14/13 speaker-disjoint split, three seeds</td><td><strong>47.41% held-out test macro F1</strong></td></tr>
     <tr><td><strong>E18 · Pretrained speech model</strong></td><td>Can fine-tuning a larger speech model improve validation performance?</td><td>CREMA-D speaker-disjoint validation, one run</td><td><strong>72.62% validation macro F1</strong></td></tr>
+    <tr><td><strong>E18 · Interim diagnostic</strong></td><td>How did E18 perform on the previously used CREMA-D test speakers?</td><td>1,066 recordings, single checkpoint</td><td><strong>70.83% interim test macro F1</strong></td></tr>
     <tr><td><strong>E19 · Alternative class weights</strong></td><td>Did giving Sad more weight help?</td><td>Same validation speakers, one run</td><td><strong>71.25% validation macro F1</strong></td></tr>
     </tbody></table>
-    <div class='rs-note'><strong>How to read this:</strong> E18 is a larger pretrained model, not the tiny E5 model used by the live classifier. Its 72.62% is a single-run validation score, not a held-out test score. The same validation speakers guided many experiments, so a fresh evaluation is needed before claiming generalisation. E8 uses a different dataset and split; its score is not directly comparable.</div>
+    <div class='rs-note'><strong>How to read this:</strong> E18 is a larger pretrained model, not the tiny E5 model used by the live classifier. Its 72.62% is a single-run validation score; 70.83% is an interim test diagnostic. These CREMA-D test speakers had already been evaluated by earlier models. The validation speakers also guided many experiments; a fresh evaluation is needed. E8 uses a different dataset and split.</div>
+    <h3>Noise-training pilot</h3>
+    <p class='rs-lead'>Three matched pairs compare fresh-head Wav2Vec2 models with and without MUSAN training noise. All results below are exploratory macro F1 on the same 13 pilot-validation speakers.</p>
+    <table class='rs-table'><thead><tr><th>Seed</th><th>Clean audio: no noise → noise training</th><th>10 dB audio: no noise → noise training</th></tr></thead><tbody>
+    <tr><td>20261108</td><td>71.04% → 73.65%</td><td>44.75% → 68.93%</td></tr>
+    <tr><td>20261109</td><td>72.28% → 73.71%</td><td>45.41% → 67.21%</td></tr>
+    <tr><td>20261110</td><td>72.98% → 74.94%</td><td>47.96% → 67.70%</td></tr>
+    <tr><td><strong>Mean</strong></td><td><strong>72.10% → 74.10% (+2.00 pp)</strong></td><td><strong>46.04% → 67.95% (+21.91 pp)</strong></td></tr>
+    </tbody></table>
+    <div class='rs-note'>All pairs use the same pilot speaker split and fixed 10 dB noise set, whose MUSAN partition was previously used. The first pair used a 30-epoch limit and earlier evaluation RNG handling; later pairs used 60 epochs and corrected handling. This is a pilot, not an independent test or evidence for other noise levels. Pilot scores and E18 use different speaker splits.</div>
     <h3>How the pretrained experiments progressed</h3>
     <table class='rs-table'><thead><tr><th>Experiment</th><th>Approach</th><th>Validation macro F1</th></tr></thead><tbody>
     <tr><td>E11</td><td>Frozen pretrained Wav2Vec2 encoder</td><td>58.65%</td></tr>
@@ -142,7 +152,7 @@ def method() -> None:
 
 def classifier() -> None:
     st.markdown("<h2>Classify a recording</h2><p class='rs-lead'>Choose one input method below. The prediction runs locally on this computer.</p>", unsafe_allow_html=True)
-    st.markdown("<div class='rs-note'><strong>Live model: E5.</strong> This demo uses the 930-parameter model, not the larger E18 model. The 72.62% figure above describes E18 validation research, not the predictions shown here.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='rs-note'><strong>Live model: E5.</strong> This demo uses the 930-parameter model, not the larger pretrained models used in the noise pilot or E18.</div>", unsafe_allow_html=True)
     st.markdown("<div class='rs-helper'><strong>Best practice:</strong> use one clearly acted sentence, ideally around 2.5 seconds. The model uses the centre two seconds and returns probabilities for six acted-speech labels.</div>", unsafe_allow_html=True)
     st.markdown("<div class='rs-input-heading'><small>Demo input</small><strong>Choose your audio source</strong><span>Only the selected input is shown below.</span></div>", unsafe_allow_html=True)
     if "demo_input_mode" not in st.session_state:

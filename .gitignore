@@ -65,6 +65,8 @@ demo/__pycache__/
 # Temporary files
 *.tmp
 *.temp
+*.partial
+*.part
 tmp/
 
 # Raw, immutable source data is intentionally not stored in Git.

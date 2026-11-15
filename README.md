@@ -1,251 +1,193 @@
 # RobustSER-Tiny
 
-> **Can a tiny model recognise emotion from speech—and will it still work when the speaker changes?**
+**A college research project exploring speech emotion recognition, compact models, unseen speakers, and background noise.**
 
-RobustSER-Tiny is a college research project about **Speech Emotion
-Recognition**. In simple words, it listens to a short acted-speech recording
-and predicts a dataset label such as **Angry, Happy, Fear, Disgust, Neutral,**
-or **Sad**.
+The project takes a short speech recording and predicts one of six acted-speech labels: **Angry, Disgust, Fear, Happy, Neutral, or Sad**. It includes a local Streamlit demonstration and scripts for training and evaluating experiments.
 
-It is inspired by this research paper:
+Our starting point is the paper [TinyML-Based Speech Emotion Recognition on Microcontrollers Using Quantized CNNs and Mel-Filterbank Energy Features](https://ioro.org/ijcsa/article/577979314071/tinyml-based-speech-emotion-recognition-on-microcontrollers-using-quantized-cnns-and-mel-filterbank-energy-features). Our work is **software-only**: we do not claim measurements on physical hardware.
 
-> [TinyML-Based Speech Emotion Recognition on Microcontrollers Using Quantized CNNs and Mel-Filterbank Energy Features](https://ioro.org/ijcsa/article/577979314071/tinyml-based-speech-emotion-recognition-on-microcontrollers-using-quantized-cnns-and-mel-filterbank-energy-features)
+## The project story
 
----
+1. **Recreate the paper's controlled setting.** E8 uses a small CNN and a TESS random split. It reached **99.50% validation macro F1**. The paper reports 99.5% validation *accuracy*; those are different metrics. E8 uses five shared emotion labels, so it is paper-style rather than an exact reproduction.
+2. **Test unfamiliar speakers.** CREMA-D includes many actors. We separate speakers into training, validation, and test groups to examine whether the model works on voices it did not train on. The tiny E5 CNN reached **47.41% test macro F1**, averaged across three seeds.
+3. **Explore a larger model.** E18 fine-tunes pretrained Wav2Vec2 and reached **72.62% validation macro F1** and **70.83% in an interim test diagnostic**, each for one checkpoint. It is much larger than E5 and is not a TinyML model.
+4. **Study background noise.** In an exploratory three-pair pilot, adding MUSAN noise during training improved mean F1 on fixed 10 dB noisy validation recordings from **46.04% to 67.95%**.
 
-## The project story, without technical jargon
+These numbers answer different questions. They use different datasets, splits, models, or evaluation stages; they are not a single head-to-head leaderboard.
 
-### Step 1 — We first followed the paper's idea
+## Important results
 
-The reference paper uses short audio clips, turns them into compact sound
-features, and trains a small CNN model. It reports **99.5% validation
-accuracy** on a controlled version of the TESS dataset.
+| Experiment | Result | What was measured |
+| --- | ---: | --- |
+| E8: paper-style TESS | **99.50%** | Five-emotion random-split validation macro F1; one run |
+| E5: tiny CNN | **47.41%** | Six-emotion CREMA-D speaker-disjoint test macro F1; three-seed mean |
+| E18: pretrained model | **72.62%** | CREMA-D validation macro F1; one run |
+| E18: interim diagnostic | **70.83%** | CREMA-D test macro F1; one checkpoint, 1,066 recordings |
+| E19: different class weights | **71.25%** | CREMA-D validation macro F1; one run |
 
-We recreated that controlled idea with TESS, five common emotion labels,
-16 kHz audio, 32-band Mel-energy features, a small CNN, and a random 80/20
-train/validation split.
+The CREMA-D test speakers had already been evaluated by earlier project models before the E18 diagnostic. Our validation speakers have guided many experiments, so further independent evaluation is needed. The Streamlit **live classifier uses E5**, not E18.
 
-### Step 2 — The controlled replication worked
+### Noise-training pilot
 
-Our TESS paper-style replication (E8) achieved:
+The pilot splits the original 64 CREMA-D training speakers into **51 pilot-training and 13 pilot-validation speakers**. The original CREMA-D validation and test speakers are not loaded. Each seed has a matched pair of models: one without added MUSAN training noise and one with it.
 
-| Controlled replication result | Score |
-| --- | ---: |
-| Best validation macro F1 | **99.50%** |
-| Best epoch | 19 |
-| Dataset | TESS, five emotions |
-| Split | Random 80% training / 20% validation |
+| Seed | Clean recordings: no noise → noise training | Fixed 10 dB recordings: no noise → noise training |
+| --- | ---: | ---: |
+| 20261108 | 71.04% → 73.65% | 44.75% → 68.93% |
+| 20261109 | 72.28% → 73.71% | 45.41% → 67.21% |
+| 20261110 | 72.98% → 74.94% | 47.96% → 67.70% |
+| **Mean** | **72.10% → 74.10%** | **46.04% → 67.95%** |
 
-This is a valid answer to: *“Can the compact paper-style model learn this
-clean, controlled benchmark?”* The answer is **yes**.
+The mean paired gains are **2.00 percentage points on clean audio** and **21.91 points on the fixed 10 dB set**. These are exploratory results on one speaker split, not final test scores or guarantees for other noise levels. The 10 dB set uses a MUSAN evaluation partition that was previously used. Seed 20261108 used a 30-epoch maximum and earlier evaluation RNG handling; the later pairs used a 60-epoch maximum and corrected evaluation RNG handling. Comparisons are matched within each pair, but the recipes are not identical across all pairs.
 
-> Important honesty note: E8 is a close paper-style replication, not an exact
-> reproduction. The paper also adds a custom Noise class; E8 uses the five
-> shared speech-emotion labels only.
+## What is macro F1?
 
-### Step 3 — Then we asked a harder, more realistic question
+Each emotion gets its own F1 score, which balances precision and recall. **Macro F1** averages those six scores, giving every emotion equal weight. It is different from accuracy, which counts the fraction of all predictions that are correct. The score does not establish a person's actual emotional state.
 
-The paper itself says that performance drops on natural recordings and
-unfamiliar voices. A high score on a simple controlled split does not always
-mean the model will work equally well for a new person in the real world.
-
-So we moved to **CREMA-D**, a much more varied acted-speech dataset with many
-different speakers. Instead of allowing the same person to appear in both
-training and validation, we made sure speakers were kept separate:
+## How the audio becomes a prediction
 
 ```text
-64 speakers for training → 14 speakers for validation → 13 completely unseen speakers for testing
+WAV / microphone recording
+        ↓
+Mono audio at 16 kHz
+        ↓
+Choose a fixed-length window
+        ↓
+E5: MFCC features → tiny CNN → six scores
+E18/pilot: waveform → pretrained Wav2Vec2 → classifier → six scores
 ```
 
-This is called a **speaker-disjoint evaluation**. It is harder, but it tests
-whether the model has learned emotion-related voice patterns rather than simply
-memorising a familiar speaker's voice.
-
----
-
-## Our results: tiny model and larger pretrained model
-
-We explored two different approaches. **E5** is the tiny model used by the
-website. **E18** uses a much larger pretrained Wav2Vec2 model and is our best
-exploratory validation result so far.
-
-| Approach | Result | What it measures |
-| --- | ---: | --- |
-| E5 tiny CNN | **47.41%** | Held-out CREMA-D test macro F1, mean of three seeds |
-| E18 pretrained Wav2Vec2 | **72.62%** | CREMA-D validation macro F1, one run; test not evaluated |
-| E19 pretrained Wav2Vec2 | **71.25%** | Same validation speakers, one run; test not evaluated |
-
-These numbers should not be compared as a direct test-set improvement: they
-use different models and evaluation stages. E18's validation speakers have
-guided repeated experiments, so its score may be optimistic. A fresh evaluation
-and independent runs are needed before claiming unseen-speaker performance.
-E18's larger model is not a 930-parameter TinyML model.
-
-### E5: the tiny model
-
-| Result | Value | Plain-English meaning |
-| --- | ---: | --- |
-| E5 final clean test macro F1 | **47.41%** | Score on speakers the model never heard during training. |
-| E5 validation macro F1 | **47.76%** | Score used to choose the checkpoint. |
-| Validation-to-test difference | **0.35 points** | The final unseen-speaker result stayed close to validation. |
-| Model size | **930 parameters** | The model is intentionally very small. |
-| Improvement over E4 | **+5.81 points** | Two seconds of context improved the robust model. |
-
-## Why the scores answer different questions
-
-At first glance, 47.41% looks much lower than 99.50%. But these results come
-from **different tests**. Comparing them directly would be like comparing a
-practice quiz with an exam containing unfamiliar questions.
-
-| Controlled E8 replication | Robust E5 evaluation |
-| --- | --- |
-| TESS: two actresses, clean scripted recordings | CREMA-D: many speakers and acting styles |
-| Random 80/20 split | Speakers are completely separated |
-| Validation result | Final held-out test result |
-| Five emotion labels | Six emotion labels |
-| Question: “Can it learn this controlled set?” | Question: “Does it work for new speakers?” |
-
-E5 uses **macro F1**, a stricter score than ordinary accuracy. Every emotion
-gets equal importance, so the model cannot look good simply by predicting the
-easiest emotion often.
-
-The most important evidence is that E5 improved from **41.60% to 47.41%** when
-we increased speech context from one second to two seconds—without increasing
-the 930-parameter model size. This +5.81-point improvement was tested across
-three random seeds and is statistically supported.
-
----
-
-## Datasets we used
-
-| Dataset | Why we used it |
-| --- | --- |
-| **TESS** | Controlled paper-style replication. It shows how well the compact model can perform on a simple benchmark. |
-| **CREMA-D** | Main robust experiment: many speakers, six acted-speech labels, and unseen-speaker testing. |
-| **MUSAN** | Noise clips used for controlled noise augmentation and stress testing. |
-| **RAVDESS** | External dataset used only after model selection to check cross-dataset generalisation. |
-
----
-
-## What happens to audio before training or prediction?
-
-```text
-WAV recording
-   ↓
-Convert to mono 16 kHz audio
-   ↓
-Choose a fixed speech window
-   ↓
-Create a small sound-feature image (MFCC or Mel energy)
-   ↓
-Small CNN model
-   ↓
-Emotion probabilities and confidence warnings
-```
-
-For the robust E5 model, the input is a **two-second** recording window and a
-**32 × 62 MFCC** feature matrix.
-
----
-
-## Challenges we found and how we handled them
-
-| Challenge | What we did |
-| --- | --- |
-| A very high controlled score may not work for unfamiliar people | Added speaker-disjoint CREMA-D evaluation. |
-| A random split can place the same speaker in both groups | Froze a split where every speaker is in only one group. |
-| Duplicate audio with conflicting labels can distort results | Detected duplicates with SHA-256 hashes and excluded only conflicts. |
-| Noise could accidentally leak from training into evaluation | Used separate, hash-disjoint MUSAN partitions. |
-| Two damaged TESS files were present in the download | The manifest generator checks WAV files and excludes only invalid containers. |
-| One lucky training run can be misleading | Used three seeded runs for the main robust experiments. |
-
----
-
-## Experiment journey
-
-| Experiment | Main change | Result |
-| --- | --- | ---: |
-| E1 | Paper-inspired compact CNN baseline | 38.15% robust test macro F1 |
-| E2 | Added controlled MUSAN noise augmentation | 37.38% robust test macro F1 |
-| E3 | Switched to MFCC features | 40.80% robust test macro F1 |
-| E4 | Used a 930-parameter depthwise-separable CNN | 41.60% robust test macro F1 |
-| E5 | Used two seconds of speech context | **47.41% robust test macro F1** |
-| E7 | Paper-style random-split comparison on CREMA-D | 47.27% validation macro-F1 mean |
-| E8 | TESS paper-style controlled replication | **99.50% validation macro F1** |
-| E9 | Wider CNN, two seconds of speech | 52.93% validation macro F1, one run |
-| E10 | Wider CNN, three seconds of speech | 54.64% validation macro F1, one run |
-| E11 | Frozen pretrained Wav2Vec2 encoder | 58.65% validation macro F1, one run |
-| E12 | Fine-tuned the last two encoder layers | 60.86% validation macro F1, one run |
-| E13 | Continued fine-tuning | 69.63% validation macro F1, one run |
-| E14 | Fine-tuned six layers | 69.94% validation macro F1, one run |
-| E15 | Fine-tuned eight layers with class weights | 70.06% validation macro F1, one run |
-| E16 | Corrected weighted-loss accumulation | 70.86% validation macro F1, one run |
-| E17 | Adjusted class weights | 71.10% validation macro F1, one run |
-| E18 | Continued E17 training | **72.62% validation macro F1, one run** |
-| E19 | Increased Sad class weight | 71.25% validation macro F1, one run |
-
-E13 was interrupted; its saved checkpoint was subsequently evaluated on the
-validation split. E15 used per-microbatch weighted loss, which can dilute the
-intended weights; E16 and later use corrected accumulation. All E9–E19 numbers
-above are validation results, not final test scores.
-
----
-
-## Try the demo
-
-The Streamlit website runs locally on your computer. It accepts a WAV file or
-microphone recording and shows the predicted label, probabilities, confidence,
-and the MFCC feature image used by the model. **The live classifier uses E5,**
-not the E18 pretrained checkpoint; the research tab reports both separately.
-
-```powershell
-Set-Location 'D:\Vs code\RobustSER-Tiny'
-$env:PYTHONPATH = 'src'
-py -3.11 -m streamlit run demo/app.py --server.port 8504
-```
-
-For the most representative demo prediction, speak one clearly acted sentence
-for about 2.5 seconds. The app accepts up to five minutes, but E5 classifies
-the centre two-second window.
-
-> The demonstration predicts acted-speech **dataset labels**. It is not a
-> mental-health, honesty, or real-emotion assessment tool.
-
----
-
-## A short explanation for your teacher
-
-> “We first recreated the compact CNN approach from the paper. On the same type
-> of controlled TESS random-split evaluation, our replication reached 99.50%
-> validation macro F1. The paper also notes that real-life recordings are more
-> difficult, so we tested the same core idea on CREMA-D with completely unseen
-> speakers. That stricter test gave 47.41% macro F1, and we improved it by 5.81
-> points using two seconds of speech context while keeping the model tiny. We
-> also explored a larger pretrained speech model, reaching 72.62% on validation
-> speakers. That newer result has not yet been tested on a fresh held-out set.”
-
----
+The demo uses E5's **centre two seconds**, padded if shorter, represented as a **32 × 62 MFCC** matrix. E18 and the pilot are separate research experiments using three-second audio windows. The app accepts recordings of up to five minutes, but E5 only classifies the centre two seconds. For a representative demonstration, use one clearly acted sentence of about 2.5 seconds.
 
 ## Project folders
 
-```text
-configs/          Experiment settings
-data/manifests/   Audits and fixed dataset splits
-src/robustser/    Audio processing, model, training, metrics, inference
-scripts/          Dataset preparation, training, and evaluation tools
-demo/             Local Streamlit demonstration website
-results/          Local checkpoints and outputs (not committed to Git)
-docs/             Detailed report and presentation material
-tests/            Automated checks
+| Folder | What it contains |
+| --- | --- |
+| `dataset/` | Locally downloaded CREMA-D, MUSAN, RAVDESS, and TESS audio; not committed to Git |
+| `data/manifests/` | Dataset inventories, quality checks, and speaker/noise split CSV files |
+| `configs/` | Experiment settings and the saved pilot speaker split |
+| `src/robustser/` | Audio processing, models, training metrics, evaluation, and inference code |
+| `scripts/` | Commands for dataset preparation, training, and evaluation |
+| `results/` | Local checkpoints, logs, and summaries; not committed to Git |
+| `demo/` | Streamlit website |
+| `docs/` | Research protocol, experiment notes, and demo guide |
+| `tests/` | Automated tests |
+
+## Setup on Windows
+
+The commands below use **PowerShell** and Python 3.11, which was used for the project on the original machine. Change the path if your project is elsewhere.
+
+```powershell
+Set-Location 'D:\Vs code\RobustSER-Tiny'
+py -3.11 --version
+py -3.11 -m pip install -e ".[demo]" transformers
+$env:PYTHONPATH = 'src'
 ```
 
-## Verify the code
+The project dependencies are listed in `pyproject.toml`; the additional `transformers` package is used by the pretrained experiments. Installing PyTorch through the standard dependency command does not by itself guarantee a CUDA-enabled build. Check your GPU setup before training:
+
+```powershell
+py -3.11 -c "import torch; print('CUDA available:', torch.cuda.is_available()); print('PyTorch CUDA:', torch.version.cuda); print('GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'not available')"
+```
+
+If CUDA reports `False`, install a CUDA-enabled PyTorch build using the instructions appropriate for your system before using the `--device cuda` commands. CPU inference is possible for E5, but training the pretrained experiments on CPU can be slow.
+
+### Data and model files
+
+Raw recordings and model checkpoints are excluded from Git. A fresh clone needs the datasets downloaded under `dataset/`, the required manifests prepared, and the relevant checkpoints restored or recreated by training. Respect each dataset's licence and terms.
+
+| Local path | Used for |
+| --- | --- |
+| `dataset/AudioWAV/` | CREMA-D speech |
+| `dataset/MUSAN/` | Background noise for the pilot and stress tests |
+| `dataset/RAVDESS/` | Previously examined external evaluation |
+| `dataset/TESS/` | E8 paper-style experiment |
+| `results/E5_seed20261108/` | The E5 checkpoint and supporting files used by the live demo |
+| `results/E18_overnight_seed20261108/` | E18 checkpoint and local interim diagnostic, when available |
+
+The pilot requires `data/manifests/crema_d_speaker_splits.csv`, `data/manifests/musan_noise_splits.csv`, and `configs/experiments/musan_pilot_split.json`. Manifest paths must point to files that exist on your computer. Pretrained runs use `facebook/wav2vec2-base`; the pilot loads it from the local Hugging Face cache. It must be downloaded to that cache first; for example, the E11 training script loads it when run with network access.
+
+## Run the website
+
+From the project folder:
 
 ```powershell
 Set-Location 'D:\Vs code\RobustSER-Tiny'
 $env:PYTHONPATH = 'src'
-python scripts/verify_release.py
+py -3.11 -m streamlit run demo\app.py --server.port 8504
 ```
 
-Raw datasets are intentionally not committed. Please respect the licence and
-terms for TESS, CREMA-D, MUSAN, and RAVDESS.
+Open the local URL Streamlit prints. If port 8504 is occupied, use a free port such as `--server.port 8505`. If the app cannot find the E5 checkpoint, restore the local `results/E5_seed20261108/` run files; they are not included in Git.
+
+In **Live classifier**, choose a WAV file, microphone recording, or the local classroom sample. Select **Classify recording** to see E5's label, scores, and warnings. The classroom sample requires its local CREMA-D audio file. The **Research evidence** tab explains E5, E18, and the noise pilot separately.
+
+## Run training and evaluation
+
+Training writes files into `results/`. Use a **new run directory** for each experiment; the scripts refuse to overwrite an existing run. These commands require the relevant datasets and manifests already on disk.
+
+### Train the E5 tiny model
+
+```powershell
+Set-Location 'D:\Vs code\RobustSER-Tiny'
+$env:PYTHONPATH = 'src'
+py -3.11 -u scripts\train.py --config configs\experiments\e5_two_second_context.yaml --run-dir results\E5_example --seed 20261108 --device cuda
+```
+
+This trains and selects a checkpoint on validation speakers; it does not load the test split.
+
+### Run a matched noise-pilot pair
+
+The following runs use the same seed and saved pilot split. Run the second command only after the first finishes successfully. They may take several hours, and early stopping can end a run before 60 epochs.
+
+```powershell
+Set-Location 'D:\Vs code\RobustSER-Tiny'
+$env:PYTHONPATH = 'src'
+$env:HF_HUB_OFFLINE = '1'
+
+py -3.11 -u scripts\pilot_noise.py --branch clean --seed 20261109 --epochs 60 --patience 10 --run-dir results\pilot_clean_example --device cuda
+if ($LASTEXITCODE -eq 0) {
+  py -3.11 -u scripts\pilot_noise.py --branch noise --seed 20261109 --epochs 60 --patience 10 --run-dir results\pilot_noise_example --device cuda
+}
+```
+
+Each folder stores `best.pt`, `metrics.jsonl`, and `summary.json`. The checkpoint is chosen using **clean validation F1** for both branches; the summary also reports performance on the same fixed 10 dB noisy validation set. Keep the computer plugged in and awake while training.
+
+### Evaluate a fine-tuned checkpoint on validation speakers
+
+```powershell
+Set-Location 'D:\Vs code\RobustSER-Tiny'
+$env:PYTHONPATH = 'src'
+$env:HF_HUB_OFFLINE = '1'
+py -3.11 -u scripts\evaluate_finetuned_validation.py results\E18_overnight_seed20261108\best_validation_macro_f1.pt --device cuda
+```
+
+This prints per-class F1, recall, and the confusion matrix for the original validation split. The E18 checkpoint and cached pretrained encoder must exist locally.
+
+### E18 interim test diagnostic
+
+`scripts/evaluate_finetuned.py` supports the Wav2Vec2 checkpoint format. E18's diagnostic has **already been run** locally, so the script refuses to overwrite its `test_metrics.json`. The command below is for a run directory whose diagnostic has not yet been saved:
+
+```powershell
+py -3.11 -u scripts\evaluate_finetuned.py --run-dir results\YOUR_FINETUNED_RUN --device cuda
+```
+
+Replace `YOUR_FINETUNED_RUN` with the selected run. Use test data only after deciding the purpose of the evaluation; repeated test-driven model selection makes its result less independent. The existing CREMA-D test speakers have already been examined in this project.
+
+## Run automated tests
+
+```powershell
+Set-Location 'D:\Vs code\RobustSER-Tiny'
+$env:PYTHONPATH = 'src'
+py -3.11 -m unittest discover -s tests -v
+```
+
+## What to say during the presentation
+
+> We started with a paper-inspired compact speech-emotion model and reproduced a high score in a controlled TESS setting. We then tested unfamiliar CREMA-D speakers, where the tiny model averaged 47.41% test macro F1. A larger pretrained model achieved 70.83% in an interim test diagnostic. In a separate exploratory pilot, adding background noise during training improved mean F1 from 46.04% to 67.95% on fixed noisy validation recordings. The settings and splits differ, so we report the results separately.
+
+## Limitations
+
+- These datasets contain acted speech; predictions are dataset labels, not a diagnosis of real emotions, mental health, honesty, or intent.
+- The pilot uses one speaker split, three seed pairs, and a previously used fixed noise set. More speakers, noise conditions, and independent evaluation are needed.
+- E18 is a larger pretrained research model; the website demonstrates E5. We do not claim hardware deployment or device-level measurements.
+- Earlier validation and test observations influenced project development. Results should be reported with their split, metric, seed count, and prior-use context.
