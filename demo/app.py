@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import math
 from pathlib import Path
 
 import numpy as np
@@ -17,8 +18,45 @@ from robustser.features.log_mel import SAMPLE_RATE, extract_mfcc, fit_audio_wind
 from robustser.inference import MAX_DEMO_DURATION_SECONDS, decode_wav_bytes, predict_wav_bytes, prediction_json, resample_to_model_rate
 
 RUN_DIR = PROJECT_ROOT / "results" / "E5_seed20261108"
+E18_CHECKPOINT = PROJECT_ROOT / "results" / "E18_overnight_seed20261108" / "best_validation_macro_f1.pt"
 REFERENCE_PAPER_URL = "https://ioro.org/ijcsa/article/577979314071/tinyml-based-speech-emotion-recognition-on-microcontrollers-using-quantized-cnns-and-mel-filterbank-energy-features"
 LOCAL_REFERENCE_CLIP = PROJECT_ROOT / "dataset" / "AudioWAV" / "1002_DFA_ANG_XX.wav"
+
+
+@st.cache_resource(show_spinner=False)
+def load_e18(checkpoint_path: str, device: str):
+    from transformers import Wav2Vec2Model
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    labels = tuple(checkpoint["labels"])
+    encoder = Wav2Vec2Model.from_pretrained(checkpoint["encoder"], local_files_only=True).to(device)
+    encoder.load_state_dict(checkpoint["encoder_state_dict"])
+    head = torch.nn.Sequential(torch.nn.Linear(encoder.config.hidden_size * 2, 256), torch.nn.ReLU(), torch.nn.Dropout(0.3), torch.nn.Linear(256, len(labels))).to(device)
+    head.load_state_dict(checkpoint["head_state_dict"])
+    return encoder.eval(), head.eval(), labels
+
+
+def predict_e18(audio_bytes: bytes, device: str) -> dict:
+    audio, rate = decode_wav_bytes(audio_bytes)
+    if not audio.size:
+        raise ValueError("The recording contains no audio samples.")
+    duration = len(audio) / rate
+    window = fit_audio_window(resample_to_model_rate(audio, rate), target_samples=3 * SAMPLE_RATE, policy="center_crop_or_zero_pad")
+    window = (window - window.mean()) / np.sqrt(window.var() + 1e-7)
+    encoder, head, labels = load_e18(str(E18_CHECKPOINT), device)
+    with torch.inference_mode():
+        hidden = encoder(torch.from_numpy(window).unsqueeze(0).to(device)).last_hidden_state
+        features = torch.cat((hidden.mean(dim=1), hidden.std(dim=1, unbiased=False)), dim=-1)
+        probabilities = torch.softmax(head(features), dim=1).cpu().numpy()[0]
+    ranking = np.argsort(probabilities)[::-1]
+    confidence = float(probabilities[ranking[0]])
+    margin = float(probabilities[ranking[0]] - probabilities[ranking[1]])
+    rms_dbfs = 20 * math.log10(max(float(np.sqrt(np.mean(np.square(audio)))), 1e-8))
+    warnings = []
+    if duration < 3: warnings.append("This recording is shorter than three seconds, so silence was added to fill the model's input window.")
+    if rms_dbfs < -45: warnings.append("Audio is quiet; speak closer to the microphone or use a clearer recording.")
+    if confidence < 0.5: warnings.append("Low model confidence: treat this label as uncertain.")
+    if margin < 0.1: warnings.append("The top two classes are close, so this prediction is ambiguous.")
+    return {"predicted_label": labels[int(ranking[0])], "confidence": confidence, "margin_to_second_choice": margin, "probabilities": {label: float(probabilities[i]) for i, label in enumerate(labels)}, "audio": {"source_sample_rate_hz": rate, "model_sample_rate_hz": SAMPLE_RATE, "duration_seconds": duration, "rms_dbfs": rms_dbfs, "model_window_seconds": 3}, "model": {"experiment_id": "E18", "checkpoint": E18_CHECKPOINT.name, "feature_type": "normalized waveform"}, "warnings": warnings}
 
 
 def styles() -> None:
@@ -75,6 +113,13 @@ def styles() -> None:
       [data-testid="stFileUploader"] *, [data-testid="stAudioInput"] *, [data-testid="stFileUploaderDropzone"] * { color:var(--ink)!important; }
       [data-testid="stFileUploader"] button, [data-testid="stAudioInput"] button { background:#fff!important; border-color:var(--navy)!important; color:var(--navy)!important; }
       [data-testid="stAudioInput"] > div, [data-testid="stAudioInput"] [data-baseweb] { background:#fff!important; }
+      [data-testid="stAudioInputWaveformTimeCode"] { background:#fff!important; color:var(--navy)!important; font-weight:600; padding:.15rem .3rem; }
+      [data-testid="stSelectbox"] label, [data-testid="stSelectbox"] label * { color:var(--navy)!important; }
+      [data-testid="stSelectbox"] [data-baseweb="select"] > div { background:#fff!important; border:1px solid var(--line)!important; color:var(--navy)!important; }
+      [data-testid="stSelectbox"] [data-baseweb="select"] span, [data-testid="stSelectbox"] [data-baseweb="select"] input { color:var(--navy)!important; -webkit-text-fill-color:var(--navy)!important; }
+      [data-testid="stSelectbox"] [data-baseweb="select"] svg { fill:var(--navy)!important; }
+      [data-baseweb="popover"] [role="listbox"], [data-baseweb="popover"] [role="option"] { background:#fff!important; color:#1E3A5F!important; }
+      [data-baseweb="popover"] [role="option"]:hover, [data-baseweb="popover"] [role="option"][aria-selected="true"] { background:#E8EEF5!important; color:#1E3A5F!important; }
       [data-testid="stMetric"] { border-left:3px solid var(--navy); background:var(--wash); padding:.7rem; }
       @media(max-width:760px){ .block-container{padding:1.4rem 1rem 3rem!important}.rs-grid,.rs-result-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rs-masthead h1{font-size:2.35rem!important;} }
     </style>
@@ -93,7 +138,7 @@ def stat_grid() -> None:
 
 
 def evidence() -> None:
-    st.markdown("<h2>Research evidence</h2><p class='rs-lead'>This project reports two different, clearly labelled results: a controlled paper-style replication and a tougher unseen-speaker evaluation. Neither result is used to hide the other.</p>", unsafe_allow_html=True)
+    st.markdown("<h2>Research evidence</h2><p class='rs-lead'>We tested two questions: can the model recognise acted speech from people it has not trained on, and can it still work when there is background noise?</p>", unsafe_allow_html=True)
     st.markdown("""
     <table class='rs-table'><thead><tr><th>Track</th><th>Question answered</th><th>Evaluation</th><th>Result</th></tr></thead><tbody>
     <tr><td><strong>E8 · TESS replication</strong></td><td>Can the compact paper-style CNN learn a clean controlled benchmark?</td><td>Five emotions, random 80/20 split</td><td><strong>99.50% validation macro F1</strong></td></tr>
@@ -103,16 +148,17 @@ def evidence() -> None:
     <tr><td><strong>E18 · Interim diagnostic</strong></td><td>How did E18 perform on the previously used CREMA-D test speakers?</td><td>1,066 recordings, single checkpoint</td><td><strong>70.83% interim test macro F1</strong></td></tr>
     <tr><td><strong>E19 · Alternative class weights</strong></td><td>Did giving Sad more weight help?</td><td>Same validation speakers, one run</td><td><strong>71.25% validation macro F1</strong></td></tr>
     </tbody></table>
-    <div class='rs-note'><strong>How to read this:</strong> E18 is a larger pretrained model, not the tiny E5 model used by the live classifier. Its 72.62% is a single-run validation score; 70.83% is an interim test diagnostic. These CREMA-D test speakers had already been evaluated by earlier models. The validation speakers also guided many experiments; a fresh evaluation is needed. E8 uses a different dataset and split.</div>
+    <div class='rs-note'><strong>How to read this:</strong> E18 is a larger pretrained model; E5 is the compact alternative. Both can be selected in the demo when their files are available. E18's 72.62% is a single-run validation score; 70.83% is an interim test diagnostic. These CREMA-D test speakers had already been evaluated by earlier models. The validation speakers also guided many experiments; a fresh evaluation is needed. E8 uses a different dataset and split.</div>
     <h3>Noise-training pilot</h3>
-    <p class='rs-lead'>Three matched pairs compare fresh-head Wav2Vec2 models with and without MUSAN training noise. All results below are exploratory macro F1 on the same 13 pilot-validation speakers.</p>
-    <table class='rs-table'><thead><tr><th>Seed</th><th>Clean audio: no noise → noise training</th><th>10 dB audio: no noise → noise training</th></tr></thead><tbody>
-    <tr><td>20261108</td><td>71.04% → 73.65%</td><td>44.75% → 68.93%</td></tr>
-    <tr><td>20261109</td><td>72.28% → 73.71%</td><td>45.41% → 67.21%</td></tr>
-    <tr><td>20261110</td><td>72.98% → 74.94%</td><td>47.96% → 67.70%</td></tr>
+    <p class='rs-lead'>We trained the same type of speech model twice: once with background sounds mixed into its training recordings, and once without. We repeated that comparison three times using different random starting points.</p>
+    <div class='rs-note'><strong>What we found:</strong> When tested on recordings with added background sound, the average score rose from <strong>46.04% to 67.95%</strong> after noise training. On clear recordings it rose from 72.10% to 74.10%. These scores use macro F1, an average that gives each emotion equal weight.</div>
+    <table class='rs-table'><thead><tr><th>Repeat</th><th>Clear recordings: without → with noise training</th><th>Noisy recordings: without → with noise training</th></tr></thead><tbody>
+    <tr><td>1</td><td>71.04% → 73.65%</td><td>44.75% → 68.93%</td></tr>
+    <tr><td>2</td><td>72.28% → 73.71%</td><td>45.41% → 67.21%</td></tr>
+    <tr><td>3</td><td>72.98% → 74.94%</td><td>47.96% → 67.70%</td></tr>
     <tr><td><strong>Mean</strong></td><td><strong>72.10% → 74.10% (+2.00 pp)</strong></td><td><strong>46.04% → 67.95% (+21.91 pp)</strong></td></tr>
     </tbody></table>
-    <div class='rs-note'>All pairs use the same pilot speaker split and fixed 10 dB noise set, whose MUSAN partition was previously used. The first pair used a 30-epoch limit and earlier evaluation RNG handling; later pairs used 60 epochs and corrected handling. This is a pilot, not an independent test or evidence for other noise levels. Pilot scores and E18 use different speaker splits.</div>
+    <div class='rs-note'><strong>What this does and does not show:</strong> This was an early experiment on recordings from the same 13 validation speakers and one fixed level of added noise. The noise recordings had been used previously. It suggests that noise training helps in this setting; we still need to test different speakers and noise levels. The first repeat had a shorter training limit and slightly different random-number handling. These results use different speakers from the E18 experiment.</div>
     <h3>How the pretrained experiments progressed</h3>
     <table class='rs-table'><thead><tr><th>Experiment</th><th>Approach</th><th>Validation macro F1</th></tr></thead><tbody>
     <tr><td>E11</td><td>Frozen pretrained Wav2Vec2 encoder</td><td>58.65%</td></tr>
@@ -137,13 +183,13 @@ def evidence() -> None:
 
 
 def method() -> None:
-    st.markdown("<h2>Method and limits</h2><p class='rs-lead'>The live demo uses E5, our six-emotion speaker-independent model. Audio stays on this computer.</p>", unsafe_allow_html=True)
+    st.markdown("<h2>Method and limits</h2><p class='rs-lead'>The demo offers a stronger speech model (E18) when its saved files are available, as well as the smaller E5 model. Audio stays on this computer.</p>", unsafe_allow_html=True)
     st.markdown("""
     <table class='rs-table'><thead><tr><th>Stage</th><th>What happens</th></tr></thead><tbody>
     <tr><td>1. Prepare audio</td><td>WAV audio is downmixed and resampled to mono 16 kHz.</td></tr>
-    <tr><td>2. Select speech</td><td>The centre two seconds are used; shorter recordings are padded.</td></tr>
-    <tr><td>3. Create features</td><td>A 32 × 62 MFCC representation is created.</td></tr>
-    <tr><td>4. Predict</td><td>The 930-parameter E5 CNN returns six probabilities and uncertainty warnings.</td></tr>
+    <tr><td>2. Select speech</td><td>E5 uses the centre two seconds; E18 uses the centre three. Shorter recordings are padded.</td></tr>
+    <tr><td>3. Prepare the sound</td><td>E5 creates MFCC sound features; E18 normalizes the waveform for its pretrained speech model.</td></tr>
+    <tr><td>4. Predict</td><td>The chosen model returns six scores and uncertainty warnings.</td></tr>
     </tbody></table>
     """, unsafe_allow_html=True)
     st.markdown(f"<div class='rs-note'><strong>Recording guidance:</strong> Training clips average 2.55 seconds. For the clearest demo, record about 2.5 seconds. The app accepts files up to {MAX_DEMO_DURATION_SECONDS / 60:g} minutes.</div>", unsafe_allow_html=True)
@@ -151,9 +197,16 @@ def method() -> None:
 
 
 def classifier() -> None:
-    st.markdown("<h2>Classify a recording</h2><p class='rs-lead'>Choose one input method below. The prediction runs locally on this computer.</p>", unsafe_allow_html=True)
-    st.markdown("<div class='rs-note'><strong>Live model: E5.</strong> This demo uses the 930-parameter model, not the larger pretrained models used in the noise pilot or E18.</div>", unsafe_allow_html=True)
-    st.markdown("<div class='rs-helper'><strong>Best practice:</strong> use one clearly acted sentence, ideally around 2.5 seconds. The model uses the centre two seconds and returns probabilities for six acted-speech labels.</div>", unsafe_allow_html=True)
+    st.markdown("<h2>Classify a recording</h2><p class='rs-lead'>Choose a voice recording and see which of six acted emotions the model thinks it most resembles. Processing happens on this computer.</p>", unsafe_allow_html=True)
+    options = ["Stronger speech model (E18)", "Small, lightweight model (E5)"] if E18_CHECKPOINT.is_file() else ["Small, lightweight model (E5)"]
+    selected_model = st.selectbox("Choose a model", options, help="E18 is larger and scored higher in our experiments; E5 is much smaller and faster to load.")
+    use_e18 = selected_model.startswith("Stronger")
+    if use_e18:
+        st.markdown("<div class='rs-note'><strong>Using the stronger model.</strong> It scored 72.62% on our validation recordings and 70.83% in a test check. Those results do not guarantee a correct prediction for your voice.</div>", unsafe_allow_html=True)
+    else:
+        st.markdown("<div class='rs-note'><strong>Using the lightweight model.</strong> This small model is designed for a compact demonstration. It achieved 47.41% average test F1 across three runs.</div>", unsafe_allow_html=True)
+        if not E18_CHECKPOINT.is_file(): st.caption("The stronger model is unavailable because its saved checkpoint is not present on this computer.")
+    st.markdown(f"<div class='rs-helper'><strong>For the best demonstration:</strong> speak one clearly acted sentence for about 2.5 seconds. The model listens to the middle {'three' if use_e18 else 'two'} seconds.</div>", unsafe_allow_html=True)
     st.markdown("<div class='rs-input-heading'><small>Demo input</small><strong>Choose your audio source</strong><span>Only the selected input is shown below.</span></div>", unsafe_allow_html=True)
     if "demo_input_mode" not in st.session_state:
         st.session_state.demo_input_mode = "Upload a WAV file"
@@ -185,7 +238,7 @@ def classifier() -> None:
     audio_source = recorded if recorded is not None else upload
     audio_bytes = LOCAL_REFERENCE_CLIP.read_bytes() if use_reference else (audio_source.getvalue() if audio_source else None)
     if audio_bytes is None:
-        st.caption("Tip: use one clearly acted sentence. The model classifies only the centre two seconds.")
+        st.caption(f"Tip: the model classifies only the centre {'three' if use_e18 else 'two'} seconds.")
         return
     if use_reference: st.caption("Local classroom sample (Angry): demonstration input only, not a reported metric.")
     st.audio(audio_bytes, format="audio/wav")
@@ -193,11 +246,13 @@ def classifier() -> None:
         return
     try:
         with st.spinner("Running local inference…"):
-            result = predict_wav_bytes(audio_bytes, run_dir=RUN_DIR, device="cuda" if torch.cuda.is_available() else "cpu")
-            audio, rate = decode_wav_bytes(audio_bytes)
-            window = fit_audio_window(resample_to_model_rate(audio, rate), target_samples=2*SAMPLE_RATE, policy="center_crop_or_zero_pad")
-            mfcc = extract_mfcc(window)
-    except (ValueError, FileNotFoundError) as error:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            result = predict_e18(audio_bytes, device) if use_e18 else predict_wav_bytes(audio_bytes, run_dir=RUN_DIR, device=device)
+            if not use_e18:
+                audio, rate = decode_wav_bytes(audio_bytes)
+                window = fit_audio_window(resample_to_model_rate(audio, rate), target_samples=2*SAMPLE_RATE, policy="center_crop_or_zero_pad")
+                mfcc = extract_mfcc(window)
+    except (ValueError, FileNotFoundError, ImportError, OSError, RuntimeError) as error:
         st.error(str(error)); return
     info = result["audio"]
     st.markdown(
@@ -205,9 +260,11 @@ def classifier() -> None:
         unsafe_allow_html=True,
     )
     probabilities = pd.DataFrame({"Emotion": list(result["probabilities"]), "Probability": list(result["probabilities"].values())}).sort_values("Probability", ascending=False)
+    st.caption("These scores show the model's preference among six labels. They are not a reliable probability of someone's real emotional state.")
     st.subheader("Model probabilities"); st.bar_chart(probabilities, x="Emotion", y="Probability"); st.dataframe(probabilities.style.format({"Probability":"{:.1%}"}), hide_index=True, use_container_width=True)
-    with st.expander("Inspect the model input"):
-        st.image(mfcc, clamp=True, caption="32 × 62 MFCC input to E5")
+    if not use_e18:
+        with st.expander("Inspect the model input"):
+            st.image(mfcc, clamp=True, caption="32 × 62 MFCC input to E5")
     for warning in result["warnings"]:
         st.markdown(f"<div class='rs-prediction-note'><strong>Prediction note:</strong> {warning}</div>", unsafe_allow_html=True)
     st.download_button("Download prediction JSON", prediction_json(result), "robustser_prediction.json", "application/json")

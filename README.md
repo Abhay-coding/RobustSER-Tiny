@@ -25,7 +25,7 @@ These numbers answer different questions. They use different datasets, splits, m
 | E18: interim diagnostic | **70.83%** | CREMA-D test macro F1; one checkpoint, 1,066 recordings |
 | E19: different class weights | **71.25%** | CREMA-D validation macro F1; one run |
 
-The CREMA-D test speakers had already been evaluated by earlier project models before the E18 diagnostic. Our validation speakers have guided many experiments, so further independent evaluation is needed. The Streamlit **live classifier uses E5**, not E18.
+The CREMA-D test speakers had already been evaluated by earlier project models before the E18 diagnostic. Our validation speakers have guided many experiments, so further independent evaluation is needed. The Streamlit classifier offers **E18 when its local checkpoint is available** and E5 as a smaller alternative.
 
 ### Noise-training pilot
 
@@ -57,7 +57,7 @@ E5: MFCC features → tiny CNN → six scores
 E18/pilot: waveform → pretrained Wav2Vec2 → classifier → six scores
 ```
 
-The demo uses E5's **centre two seconds**, padded if shorter, represented as a **32 × 62 MFCC** matrix. E18 and the pilot are separate research experiments using three-second audio windows. The app accepts recordings of up to five minutes, but E5 only classifies the centre two seconds. For a representative demonstration, use one clearly acted sentence of about 2.5 seconds.
+The demo uses the centre **two seconds** for E5, represented as a **32 × 62 MFCC** matrix, or the centre **three seconds** for E18. Shorter clips are padded. The app accepts recordings of up to five minutes, but only that centre window is classified. For a representative demonstration, use one clearly acted sentence of about 2.5 seconds.
 
 ## Project folders
 
@@ -109,7 +109,7 @@ The pilot requires `data/manifests/crema_d_speaker_splits.csv`, `data/manifests/
 
 ## Run the website
 
-From the project folder:
+Open **PowerShell** and paste these three lines. Change the folder path if your project is stored elsewhere:
 
 ```powershell
 Set-Location 'D:\Vs code\RobustSER-Tiny'
@@ -117,9 +117,9 @@ $env:PYTHONPATH = 'src'
 py -3.11 -m streamlit run demo\app.py --server.port 8504
 ```
 
-Open the local URL Streamlit prints. If port 8504 is occupied, use a free port such as `--server.port 8505`. If the app cannot find the E5 checkpoint, restore the local `results/E5_seed20261108/` run files; they are not included in Git.
+Open [http://localhost:8504](http://localhost:8504) in your browser and keep PowerShell open while using the website. Press **Ctrl+C** in PowerShell to stop it. If port 8504 is occupied, change the port in the command and browser address to a free one, such as `8505`. If the app cannot find the E5 checkpoint, restore the local `results/E5_seed20261108/` run files; they are not included in Git.
 
-In **Live classifier**, choose a WAV file, microphone recording, or the local classroom sample. Select **Classify recording** to see E5's label, scores, and warnings. The classroom sample requires its local CREMA-D audio file. The **Research evidence** tab explains E5, E18, and the noise pilot separately.
+In **Live classifier**, choose E18 or E5, then select a WAV file, microphone recording, or the local classroom sample. E18 is offered when its checkpoint exists and requires `transformers` and the cached pretrained encoder. Select **Classify recording** to see the chosen model's label, scores, and warnings. The classroom sample requires its local CREMA-D audio file. The **Research evidence** tab explains E5, E18, and the noise pilot separately.
 
 ## Run training and evaluation
 
@@ -189,5 +189,5 @@ py -3.11 -m unittest discover -s tests -v
 
 - These datasets contain acted speech; predictions are dataset labels, not a diagnosis of real emotions, mental health, honesty, or intent.
 - The pilot uses one speaker split, three seed pairs, and a previously used fixed noise set. More speakers, noise conditions, and independent evaluation are needed.
-- E18 is a larger pretrained research model; the website demonstrates E5. We do not claim hardware deployment or device-level measurements.
+- E18 is a larger pretrained research model; the website also offers the smaller E5. We do not claim hardware deployment or device-level measurements.
 - Earlier validation and test observations influenced project development. Results should be reported with their split, metric, seed count, and prior-use context.
